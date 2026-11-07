@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Muscules | Inventario de Neo</title>
+    <link rel="stylesheet" href="inventario.css">
+</head>
+
+<body>
+    <main class="inventory-screen">
+        <div class="inventory-frame">
+            <a class="back" href="index.html" aria-label="Volver al inicio">← <span>Atrás</span></a>
+            <img class="corner tl" src="assets/sparkle.png" alt=""><img class="corner tr"
+                src="assets/sparkle.png" alt=""><img class="corner bl" src="assets/sparkle.png" alt=""><img
+                class="corner br" src="assets/sparkle.png" alt="">
+            <h1>Neo</h1>
+            <section class="hero" aria-label="Neo y su equipo"><img class="neo" src="assets/neo.png" alt="Neo"><img
+                    class="gear hood" src="assets/capa.png" alt="Capucha"><img class="gear armor"
+                    src="assets/armadura.png" alt="Armadura"><img class="gear sword" src="assets/espada.png"
+                    alt="Espada"><img class="gear boots" src="assets/botas.png" alt="Botas"></section>
+            <h2>Inventario</h2>
+            <div id="inventory-grid" class="inventory-grid" aria-label="Objetos de Neo"></div>
+            <p class="hint">Toca un objeto para ver su tarjeta.</p>
+        </div>
+    </main>
+    <dialog id="item-dialog" aria-labelledby="item-title">
+        <div class="dialog-inner"><button class="close" type="button" aria-label="Cerrar">×</button>
+            <h2 id="item-title"></h2><img id="item-card" alt="Tarjeta del objeto">
+            <p id="item-count"></p>
+        </div>
+    </dialog>
+    <script src="inventory-data.js"></script>
+    <script src="inventario.js"></script>
+</body>
+
+</html>

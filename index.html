@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#42303a">
+    <title>Muscules | Neo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <main class="game" aria-label="Inicio de Muscules">
+        <div class="frame">
+            <img class="corner tl" src="assets/sparkle.png" alt=""><img class="corner tr" src="assets/sparkle.png"
+                alt=""><img class="corner bl" src="assets/sparkle.png" alt=""><img class="corner br"
+                src="assets/sparkle.png" alt="">
+            <header class="welcome">
+                <h1>Bienvenido<br><span>Neo</span></h1>
+            </header>
+            <img class="hero" src="assets/cherry.png" alt="Personaje de Neo">
+            <nav class="menu" aria-label="Menú principal">
+                <button class="nav-btn profile" data-page="Perfil"><img src="assets/neo icono.png"
+                        alt=""><span>Perfil</span></button>
+                <button class="nav-btn encounter" data-page="Encuentro"><img src="assets/encounter.png"
+                        alt=""><span>Encuentro</span></button>
+                <button class="nav-btn inventory" data-page="Inventario"><img src="assets/inventory.png"
+                        alt=""><span>Inventario</span></button>
+            </nav>
+        </div>
+    </main>
+    <dialog id="coming-soon">
+        <div class="dialog-content">
+            <h2 id="dialog-title"></h2>
+            <p>Esta sección la construiremos en el siguiente paso.</p><button id="close-dialog">Volver al
+                inicio</button>
+        </div>
+    </dialog>
+    <script src="script.js"></script>
+</body>
+
+</html>

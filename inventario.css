@@ -1,0 +1,299 @@
+* {
+    box-sizing: border-box
+}
+
+html,
+body {
+    margin: 0;
+    min-height: 100%;
+    font-family: Georgia, serif
+}
+
+body {
+    display: grid;
+    place-items: center;
+    background: #45303c
+}
+
+.inventory-screen {
+    position: relative;
+    width: min(100%, 393px);
+    aspect-ratio: 393/852;
+    overflow: hidden;
+    background:
+        linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
+        url('assets/fondo-inventario.jpg') center/cover no-repeat;
+    box-shadow: 0 10px 45px #0006
+}
+
+.inventory-frame {
+    position: absolute;
+    inset: 0;
+    border: 17px solid #553b3c;
+    box-shadow: inset 0 0 0 3px #a77754;
+    background: transparent
+}
+
+.corner {
+    position: absolute;
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+    z-index: 4;
+    filter: drop-shadow(0 1px 2px #7a4d32)
+}
+
+.tl {
+    top: -21px;
+    left: -20px
+}
+
+.tr {
+    top: -21px;
+    right: -20px;
+    transform: scaleX(-1)
+}
+
+.bl {
+    bottom: -21px;
+    left: -20px;
+    transform: scaleY(-1)
+}
+
+.br {
+    bottom: -21px;
+    right: -20px;
+    transform: rotate(180deg)
+}
+
+.back {
+    position: absolute;
+    left: 12px;
+    top: 9px;
+    color: #fff;
+    text-decoration: none;
+    font: 16px Arial, sans-serif;
+    z-index: 3;
+    text-shadow: 0 1px 2px #513529
+}
+
+.back:first-letter {
+    font-size: 23px
+}
+
+.back:focus-visible,
+.back:hover {
+    text-decoration: underline
+}
+
+.inventory-frame h1 {
+    position: absolute;
+    top: 9%;
+    width: 100%;
+    text-align: center;
+    color: #fff;
+    font-size: 23px;
+    text-shadow: 1px 2px #6d3c33
+}
+
+.hero {
+    position: absolute;
+    top: 16%;
+    left: 0;
+    right: 0;
+    height: 28%
+}
+
+.neo {
+    position: absolute;
+    left: 50%;
+    top: 3%;
+    transform: translateX(-50%);
+    height: 88%;
+    width: 45%;
+    object-fit: contain
+}
+
+.gear {
+    position: absolute;
+    width: 15%;
+    height: 25%;
+    object-fit: contain;
+    background: #eeeae2;
+    border: 1px solid #6c4e36;
+    box-shadow: 0 2px 3px #0003
+}
+
+.hood {
+    left: 8%;
+    top: 13%
+}
+
+.armor {
+    left: 8%;
+    top: 52%
+}
+
+.sword {
+    right: 8%;
+    top: 13%
+}
+
+.boots {
+    right: 8%;
+    top: 52%
+}
+
+.inventory-frame h2 {
+    position: absolute;
+    top: 45%;
+    width: 100%;
+    text-align: center;
+    margin: 0;
+    color: white;
+    font-size: 23px;
+    text-shadow: 1px 2px #734b3e
+}
+
+.inventory-grid {
+    position: absolute;
+    top: 51%;
+    left: 13%;
+    width: 74%;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-auto-rows: 50px;
+    border: 3px solid #69431f;
+    background: #f0d3ad
+}
+
+.slot {
+    appearance: none;
+    display: grid;
+    place-items: center;
+    position: relative;
+    min-width: 0;
+    padding: 2px;
+    border: 1.5px solid #69431f;
+    background: #fff9ee;
+    cursor: pointer
+}
+
+.slot:disabled {
+    cursor: default;
+    background: #f5e5cb
+}
+
+.slot:not(:disabled):hover,
+.slot:not(:disabled):focus-visible {
+    background: #f9e2a3;
+    outline: 2px solid #68432c;
+    outline-offset: -3px
+}
+
+.slot img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain
+}
+
+.qty {
+    position: absolute;
+    right: 1px;
+    bottom: 0;
+    color: white;
+    background: #553824;
+    border-radius: 3px;
+    padding: 0 3px;
+    font: 11px Arial, sans-serif
+}
+
+.hint {
+    position: absolute;
+    top: 74%;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: #6c4530;
+    font: 12px Arial, sans-serif
+}
+
+dialog {
+    border: 2px solid #634222;
+    border-radius: 12px;
+    padding: 0;
+    background: #e6bf8c;
+    color: #392517;
+    max-width: min(90vw, 390px);
+    box-shadow: 0 18px 65px #0008
+}
+
+dialog::backdrop {
+    background: #000a
+}
+
+.dialog-inner {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px
+}
+
+.dialog-inner h2 {
+    font-size: 20px;
+    text-align: center;
+    margin: 4px 25px
+}
+
+.dialog-inner img {
+    width: min(75vw, 275px);
+    max-height: 60dvh;
+    object-fit: contain
+}
+
+.dialog-inner p {
+    margin: 0;
+    font: 14px Arial, sans-serif
+}
+
+.close {
+    position: absolute;
+    right: 8px;
+    top: 6px;
+    background: #6a4430;
+    color: white;
+    border: 0;
+    border-radius: 6px;
+    font-size: 23px;
+    cursor: pointer;
+    width: 32px;
+    height: 32px
+}
+
+@media(max-width:393px) {
+    .inventory-screen {
+        height: 100dvh;
+        aspect-ratio: auto
+    }
+
+    .inventory-grid {
+        grid-auto-rows: clamp(42px, 12vw, 50px)
+    }
+}
+
+@media(min-width:394px) {
+    body {
+        padding: 18px
+    }
+}
+
+@media(max-height:730px) {
+    .inventory-grid {
+        grid-auto-rows: 42px
+    }
+
+    .hint {
+        top: 79%
+    }
+}
