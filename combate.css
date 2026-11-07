@@ -187,7 +187,7 @@ a {
 .hero-track>div {
     height: 100%;
     width: 100%;
-    background: #d42d2d;
+    background: #6aba75;
     transition: width .25s
 }
 
@@ -355,4 +355,39 @@ a {
     .scene--result h1 {
         margin-top: 9vh
     }
+}
+
+/* Selector visible solo para pruebas locales; retirar en versión jugador */
+.dev-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: #221522dd;
+    padding: 7px 10px;
+    border-radius: 8px;
+    font: 12px Arial, sans-serif
+}
+
+.dev-picker select {
+    padding: 5px;
+    border-radius: 5px;
+    background: #f7e9d9;
+    color: #241523;
+    border: 0
+}
+
+.dev-picker small {
+    opacity: .8
+}
+
+.enemy {
+    margin-top: 1vh
+}
+
+header {
+    gap: 9px
+}
+
+.monster {
+    height: clamp(115px, 22vh, 215px)
 }

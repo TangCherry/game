@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Muscules · Carrotñero</title>
+  <title>Muscules · Bestiario dinámico</title>
   <link rel="stylesheet" href="combate.css">
 </head>
 
@@ -14,11 +14,15 @@
       alt=""><img class="corner bl" src="assets/combate/chispa.png" alt=""><img class="corner br"
       src="assets/combate/chispa.png" alt="">
     <section id="battle" class="scene scene--battle">
-      <header><a class="back" href="index.html">← Atrás</a>
+      <header>
+        <div class="dev-picker"><label for="enemy-select">🧪 Enemigo de prueba</label><select
+            id="enemy-select"></select><small id="demo-note">Modo local: no es un encuentro real de Cherry</small></div>
+        <a class="back" href="index.html">← Atrás</a>
         <div class="timer"><span>Tiempo restante:</span><strong id="timer" aria-live="off">24:00:00</strong></div>
       </header>
       <div class="enemy">
-        <h1>Carrotñero</h1><img class="monster" src="assets/combate/carrotnero.png" alt="Carrotñero">
+        <h1 id="enemy-name">Carrotñero</h1><img class="monster" id="enemy-image" src="assets/combate/carrotnero.png"
+          alt="Enemigo">
       </div>
       <div class="battle-panel">
         <div class="stat"><span>HP</span>
@@ -27,9 +31,9 @@
           </div>
         </div>
         <div class="stat"><span>ATK</span>
-          <div class="track atk"><b>8</b></div>
+          <div class="track atk"><b id="enemy-atk">8</b></div>
         </div>
-        <p class="ability"><strong>Habilidad</strong><span>Tus ataques hacen −3 de daño</span></p>
+        <p class="ability"><strong>Habilidad</strong><span id="enemy-ability">Tus ataques hacen −3 de daño</span></p>
         <div class="hero-stats"><span>NEOGON</span><span id="hero-hp">28/28 HP</span></div>
         <div class="hero-track">
           <div id="hero-bar"></div>
@@ -41,21 +45,23 @@
       <a class="exit" href="index.html">Salir</a>
     </section>
     <section id="win" class="scene scene--result win" hidden>
-      <h1>¡Victoria!</h1><img class="result-monster" src="assets/combate/carrotnero.png" alt="Carrotñero derrotado">
+      <h1>¡Victoria!</h1><img class="result-monster" id="win-image" src="assets/combate/carrotnero.png"
+        alt="Enemigo derrotado">
       <div class="result-copy">
         <p>Recompensa</p>
-        <p>30 XP</p><button id="claim" class="claim">Reclamar</button>
+        <p id="reward-xp">30 XP</p><button id="claim" class="claim">Reclamar</button>
         <p class="result-status" id="claim-status"></p>
       </div><a href="index.html" class="result-exit">Salir</a>
     </section>
     <section id="lose" class="scene scene--result lose" hidden>
-      <h1>Derrota</h1><img class="result-monster" src="assets/combate/carrotnero.png" alt="Carrotñero">
+      <h1>Derrota</h1><img class="result-monster" id="lose-image" src="assets/combate/carrotnero.png" alt="Enemigo">
       <div class="result-copy">
         <p id="lose-reason">Fallecido</p>
         <p id="lose-detail">Sin penalización de XP</p><a class="result-exit" href="index.html">Salir</a>
       </div>
     </section>
   </main>
+  <script src="enemies.js" defer></script>
   <script src="combate.js" defer></script>
 </body>
 
