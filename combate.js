@@ -16,7 +16,7 @@
   let selectedId = new URLSearchParams(location.search).get('enemy') || 'carrotnero';
   if (!CATALOG.some(e => e.id === selectedId)) selectedId = 'carrotnero';
   let enemy, battle, battleKey;
-  function freshBattle() { return { id: `demo-${enemy.id}`, enemyId: enemy.id, startedAt: Date.now(), expiresAt: Date.now() + DURATION, enemyHp: enemy.hp, heroHp: hero.hp, status: hero.hp > 0 ? 'active' : 'lost', reason: hero.hp > 0 ? null : 'hp', round: 0, claimed: false, openingApplied: false, xpStolen: 0, message: `¡${enemy.name} te desafía! Neo ataca primero.` }; }
+  function freshBattle() { return { id: `demo-${enemy.id}`, enemyId: enemy.id, startedAt: Date.now(), expiresAt: Date.now() + DURATION, enemyHp: enemy.hp, heroHp: hero.hp, status: hero.hp > 0 ? 'active' : 'lost', reason: hero.hp > 0 ? null : 'hp', round: 0, claimed: false, openingApplied: false, xpStolen: 0, rooted: false, message: `¡${enemy.name} te desafía! Neo ataca primero.` }; }
   function persist() { save(battleKey, battle); save(HERO_KEY, hero) }
   function loadEnemy(id) {
     const source = CATALOG.find(e => e.id === id); if (!source) return;
@@ -79,25 +79,41 @@
   $('roll').addEventListener('click', () => {
     expire(); if (battle.status !== 'active') { render(); return; }
     if (hero.hp <= 0) { battle.status = 'lost'; battle.reason = 'hp'; persist(); render(); return; }
-    const neoRoll = roll();
-    const blocked = enemy.effect?.type === 'roll_immunity' && neoRoll <= enemy.effect.threshold;
-    const neoDamage = blocked ? 0 : Math.max(1, Math.floor(neoRoll / 2) + Math.floor(hero.atk / 5) - enemy.armor);
+    // Raíces: se consume el turno atrapado sin tirada de Neo.
+    const wasRooted = battle.rooted === true;
+    battle.rooted = false;
+    const neoRoll = wasRooted ? null : roll();
+    const blocked = !wasRooted && enemy.effect?.type === 'roll_immunity' && neoRoll <= enemy.effect.threshold;
+    const confused = !wasRooted && !blocked && enemy.effect?.type === 'confusion'
+      && Math.random() < enemy.effect.chance;
+    const baseDamage = wasRooted || blocked ? 0 : Math.max(1, Math.floor(neoRoll / 2) + Math.floor(hero.atk / 5) - enemy.armor);
+    const neoDamage = confused ? Math.max(1, Math.floor(baseDamage / 2)) : baseDamage;
     battle.enemyHp = Math.max(0, battle.enemyHp - neoDamage); battle.round++;
-    if (battle.enemyHp === 0) { battle.status = 'won'; battle.message = `Ronda ${battle.round}: Neo 🎲${neoRoll} → ${neoDamage} daño. ¡Victoria!`; }
-    else {
-      const enemyRoll = roll(); const monsterDamage = Math.max(1, Math.floor(enemyRoll / 4) + Math.max(1, Math.floor(enemy.atk * 3 / 8)));
+    const attackText = wasRooted ? 'Neo está atrapado y pierde su ataque (0 daño)'
+      : `Neo 🎲${neoRoll} → ${blocked ? 'ataque bloqueado (0 daño)' : `${neoDamage} daño${confused ? ' (esporas: daño reducido)' : ''}`}`;
+    if (battle.enemyHp === 0) {
+      battle.status = 'won';
+      battle.message = `Ronda ${battle.round}: ${attackText}. ¡Victoria!`;
+    } else {
+      const enemyRoll = roll();
+      const monsterDamage = Math.max(1, Math.floor(enemyRoll / 4) + Math.max(1, Math.floor(enemy.atk * 3 / 8)));
       hero.hp = Math.max(0, hero.hp - monsterDamage); battle.heroHp = hero.hp;
-      // La habilidad se aplica únicamente cuando el enemigo alcanza a contraatacar.
       const xpTheft = enemy.effect?.type === 'steal_xp'
         ? Math.min(Math.max(0, hero.xp), Math.max(0, Number(enemy.effect.amount) || 0)) : 0;
       if (xpTheft > 0) { hero.xp -= xpTheft; battle.xpStolen = (battle.xpStolen || 0) + xpTheft; }
-      battle.message = `Ronda ${battle.round}: Neo 🎲${neoRoll} → ${blocked ? 'ataque bloqueado (0 daño)' : `${neoDamage} daño`}. ${enemy.name} 🎲${enemyRoll} → ${monsterDamage} daño.${enemy.effect?.type === 'steal_xp' ? ` Roba ${xpTheft} XP (XP actual: ${hero.xp}).` : ''}`;
+      // No encadenar raíces durante un turno que Neo ya perdió.
+      const newlyRooted = hero.hp > 0 && !wasRooted && enemy.effect?.type === 'root_trap'
+        && Math.random() < enemy.effect.chance;
+      if (newlyRooted) battle.rooted = true;
+      battle.message = `Ronda ${battle.round}: ${attackText}. ${enemy.name} 🎲${enemyRoll} → ${monsterDamage} daño.`
+        + (enemy.effect?.type === 'steal_xp' ? ` Roba ${xpTheft} XP (XP actual: ${hero.xp}).` : '')
+        + (newlyRooted ? ' ¡Petunia te atrapa con sus raíces! Perderás tu próximo ataque.' : '');
       if (hero.hp === 0) { battle.status = 'lost'; battle.reason = 'hp'; battle.message += ' Neo ha caído.'; }
     }
     persist(); render();
   });
   $('claim').addEventListener('click', () => { expire(); if (battle.status !== 'won' || battle.claimed) { render(); return; } if (enemy.reward && enemy.reward.type !== 'xp') { alert('Recompensa especial pendiente de implementar; no se añadirá XP ficticio.'); return; } battle.claimed = true; hero.xp += (enemy.xp ?? 0); persist(); render() });
-  $('reset').addEventListener('click', () => { if (!confirm('¿Reiniciar este encuentro de prueba? Restaurará HP a 28 y no restará XP ya reclamado.')) return; hero.hp = hero.maxHp; battle = freshBattle(); persist(); render() });
+  $('reset').addEventListener('click', () => { if (!confirm('¿Reiniciar este encuentro de prueba? Restaurará HP a 28 y no restará XP ya reclamado.')) return; hero.hp = hero.maxHp; battle = freshBattle(); persist(); loadEnemy(selectedId) });
   $('enemy-select').addEventListener('change', e => loadEnemy(e.target.value));
   for (const e of CATALOG) { const opt = document.createElement('option'); opt.value = e.id; opt.textContent = `Nivel ${e.level} · ${e.name}`; $('enemy-select').append(opt) }
   window.MusculesDemo = { state: () => structuredClone({ hero, battle, enemy }), reset: () => $('reset').click(), expire: () => { battle.expiresAt = Date.now() - 1; persist(); render() }, win: () => { if (battle.status !== 'active') return; battle.enemyHp = 0; battle.status = 'won'; battle.message = 'Victoria forzada para probar la pantalla'; persist(); render() }, select: loadEnemy };

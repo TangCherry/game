@@ -42,7 +42,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 6,
     "xp": 45,
     "armor": 0,
-    "ability": "Habilidad especial pendiente (v0.3)"
+    "ability": "25% de atrapar a Neo con raíces y hacerle perder su siguiente ataque",
+    "effect": { "type": "root_trap", "chance": 0.25 }
   },
   {
     "id": "slime",
@@ -64,7 +65,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 8,
     "xp": 10,
     "armor": 0,
-    "ability": "Pérdida temporal de XP (pendiente de definir)"
+    "ability": "20% de reducir a la mitad el daño de tu ataque",
+    "effect": { "type": "confusion", "chance": 0.20 }
   },
   {
     "id": "buho",
