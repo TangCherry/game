@@ -18,7 +18,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 4,
     "xp": 30,
     "armor": 0,
-    "ability": "Roba 5 XP por ataque (pendiente de implementar)"
+    "ability": "Roba 5 XP por cada contraataque",
+    "effect": { "type": "steal_xp", "amount": 5 }
   },
   {
     "id": "ojo",
@@ -29,7 +30,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 5,
     "xp": 10,
     "armor": 0,
-    "ability": "Tiradas de 3 o menos no le hacen daño (pendiente)"
+    "ability": "Tiradas de 9 o menos no le hacen daño",
+    "effect": { "type": "roll_immunity", "threshold": 9 }
   },
   {
     "id": "petunia",
@@ -84,7 +86,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 6,
     "xp": 15,
     "armor": 0,
-    "ability": "Quita 2 HP al iniciar el combate (pendiente)"
+    "ability": "Quita 2 HP al iniciar el combate",
+    "effect": { "type": "opening_damage", "amount": 2 }
   },
   {
     "id": "rama",
