@@ -229,7 +229,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 15,
     "xp": 50,
     "armor": 0,
-    "ability": "Veneno (pendiente de definir)"
+    "ability": "Veneno infernal: 25% de envenenar; −2 HP al inicio de los siguientes 2 turnos (no acumulable)",
+    "effect": { "type": "poison", "chance": 0.25, "amount": 2, "turns": 2 }
   },
   {
     "id": "apostol",
@@ -240,7 +241,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 18,
     "xp": null,
     "armor": 0,
-    "ability": "Habilidad especial pendiente (v0.3)",
+    "ability": "Juicio divino: 20% de infligir 4 HP adicionales al contraatacar",
+    "effect": { "type": "divine_judgment", "chance": 0.20, "amount": 4 },
     "reward": {
       "type": "random_item",
       "description": "Botín aleatorio"
@@ -255,7 +257,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 18,
     "xp": 10,
     "armor": 0,
-    "ability": "Neo pelea con los puños (12 ATK; pendiente)"
+    "ability": "Combate sin armas: Neo pelea con 12 ATK durante este encuentro",
+    "effect": { "type": "fists_only", "atk": 12 }
   },
   {
     "id": "nega",
@@ -266,6 +269,7 @@ window.MUSCULES_ENEMIES = [
     "atk": 20,
     "xp": 80,
     "armor": 0,
-    "ability": "Refleja daño recibido (pendiente)"
+    "ability": "Reflejo oscuro: 20% de devolver 25% del daño recibido (redondeado hacia arriba)",
+    "effect": { "type": "damage_reflect", "chance": 0.20, "ratio": 0.25 }
   }
 ];

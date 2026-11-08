@@ -1,4 +1,4 @@
-/* Muscules v0.5.1: bestiario dinámico, demo local. No sincroniza con Supabase. */
+/* Muscules v0.6: bestiario dinámico, demo local. No sincroniza con Supabase. */
 (() => {
   'use strict';
   const HERO_KEY = 'muscules_neo_stats_v01';
@@ -16,7 +16,7 @@
   let selectedId = new URLSearchParams(location.search).get('enemy') || 'carrotnero';
   if (!CATALOG.some(e => e.id === selectedId)) selectedId = 'carrotnero';
   let enemy, battle, battleKey;
-  function freshBattle() { return { id: `demo-${enemy.id}`, enemyId: enemy.id, startedAt: Date.now(), expiresAt: Date.now() + DURATION, enemyHp: enemy.hp, heroHp: hero.hp, status: hero.hp > 0 ? 'active' : 'lost', reason: hero.hp > 0 ? null : 'hp', round: 0, claimed: false, openingApplied: false, xpStolen: 0, rooted: false, slothAttacks: 0, owlPenalty: false, lapidaMaxHp: null, lapidaHp: null, message: `¡${enemy.name} te desafía! Neo ataca primero.` }; }
+  function freshBattle() { return { id: `demo-${enemy.id}`, enemyId: enemy.id, startedAt: Date.now(), expiresAt: Date.now() + DURATION, enemyHp: enemy.hp, heroHp: hero.hp, status: hero.hp > 0 ? 'active' : 'lost', reason: hero.hp > 0 ? null : 'hp', round: 0, claimed: false, openingApplied: false, xpStolen: 0, rooted: false, slothAttacks: 0, owlPenalty: false, lapidaMaxHp: null, lapidaHp: null, poisonTurns: 0, message: `¡${enemy.name} te desafía! Neo ataca primero.` }; }
   // La Lápida limita la vida DISPONIBLE, sin borrar la mitad protegida.
   // hero.hp siempre guarda la vida real restante de Neo.
   function isLapida() { return enemy?.effect?.type === 'half_hp'; }
@@ -121,6 +121,18 @@
   $('roll').addEventListener('click', () => {
     expire(); if (battle.status !== 'active') { render(); return; }
     if (heroDefeated()) { markHeroDefeat(); persist(); render(); return; }
+    // Veneno: al comenzar los dos turnos siguientes, antes del ataque de Neo.
+    let poisonText = '';
+    if (enemy.effect?.type === 'poison' && (battle.poisonTurns || 0) > 0) {
+      const actualPoison = takeDamage(enemy.effect.amount);
+      battle.poisonTurns--;
+      poisonText = `☠️ El veneno causa ${actualPoison} HP de daño (${battle.poisonTurns} turnos restantes). `;
+      if (heroDefeated()) {
+        markHeroDefeat();
+        battle.message = `${poisonText}Neo ha caído antes de atacar.`;
+        persist(); render(); return;
+      }
+    }
     // Raíces: se consume el turno atrapado sin tirada de Neo.
     const wasRooted = battle.rooted === true;
     battle.rooted = false;
@@ -132,7 +144,7 @@
     const confused = !cannotAttack && !blocked && enemy.effect?.type === 'confusion'
       && Math.random() < enemy.effect.chance;
     // Pescado: -5 ATK solo para este encuentro; hero.atk no se modifica.
-    const effectiveAtk = Math.max(0, hero.atk - (enemy.effect?.type === 'underwater_atk' ? enemy.effect.amount : 0));
+    const effectiveAtk = enemy.effect?.type === 'fists_only' ? enemy.effect.atk : Math.max(0, hero.atk - (enemy.effect?.type === 'underwater_atk' ? enemy.effect.amount : 0));
     const baseDamage = cannotAttack || blocked ? 0 : Math.max(1, Math.floor(neoRoll / 2) + Math.floor(effectiveAtk / 5) - enemy.armor);
     // Solo se consumen los debuffs cuando Neo efectivamente intenta atacar.
     const slothPenalty = !cannotAttack && (battle.slothAttacks || 0) > 0 ? (enemy.effect?.type === 'opening_sloth' ? enemy.effect.amount : 0) : 0;
@@ -150,13 +162,18 @@
     const thornDamage = neoDamage > 0 && enemy.effect?.type === 'thorns' && Math.random() < enemy.effect.chance
       ? Math.max(0, Number(enemy.effect.amount) || 0) : 0;
     if (thornDamage) takeDamage(thornDamage);
+    // Nega Neo: reflejo incluso en el golpe final; sin contraataque si muere.
+    const reflectDamage = neoDamage > 0 && enemy.effect?.type === 'damage_reflect' && Math.random() < enemy.effect.chance
+      ? Math.ceil(neoDamage * enemy.effect.ratio) : 0;
+    if (reflectDamage) takeDamage(reflectDamage);
+    const reflectText = reflectDamage ? ` 🖤 ¡Reflejo oscuro! Nega Neo devuelve ${reflectDamage} HP de daño.` : '';
     const thornText = thornDamage ? ` ¡Las espinas devuelven ${thornDamage} HP de daño!` : '';
     if (heroDefeated()) {
       markHeroDefeat();
-      battle.message = `Ronda ${battle.round}: ${attackText}.${thornText} Neo ha caído.`;
+      battle.message = `${poisonText}Ronda ${battle.round}: ${attackText}.${thornText}${reflectText} Neo ha caído.`;
     } else if (battle.enemyHp === 0) {
       battle.status = 'won';
-      battle.message = `Ronda ${battle.round}: ${attackText}.${thornText} ¡Victoria!`;
+      battle.message = `${poisonText}Ronda ${battle.round}: ${attackText}.${thornText}${reflectText} ¡Victoria!`;
     } else {
       const enemyRoll = roll();
       const monsterDamage = Math.max(1, Math.floor(enemyRoll / 4) + Math.max(1, Math.floor(enemy.atk * 3 / 8)));
@@ -165,6 +182,13 @@
       const bonusDamage = enemy.effect?.type === 'extra_hit' && Math.random() < enemy.effect.chance
         ? Math.max(0, Number(enemy.effect.amount) || 0) : 0;
       if (bonusDamage) takeDamage(bonusDamage);
+      // Apóstol: juicio divino es daño extra, no modifica el ATK permanente.
+      const judgmentDamage = enemy.effect?.type === 'divine_judgment' && Math.random() < enemy.effect.chance
+        ? Math.max(0, Number(enemy.effect.amount) || 0) : 0;
+      if (judgmentDamage) takeDamage(judgmentDamage);
+      // Mini demonio: no se acumula, solo renueva dos turnos futuros.
+      const poisoned = !heroDefeated() && enemy.effect?.type === 'poison' && Math.random() < enemy.effect.chance;
+      if (poisoned) battle.poisonTurns = enemy.effect.turns;
       // Fantasma: drena hasta 2 HP reales y se cura la misma cantidad.
       const drain = enemy.effect?.type === 'life_drain'
         ? Math.min(hero.hp, Math.max(0, Number(enemy.effect.amount) || 0)) : 0;
@@ -188,9 +212,12 @@
           ? ' 😈 ¡Ataque coordinado! Los Diablillos infligen 2 HP adicionales.'
           : ` ¡Golpe adicional! ${bonusDamage} HP extra de daño.`
         : '';
-      battle.message = `Ronda ${battle.round}: ${attackText}. ${enemy.name} 🎲${enemyRoll} → ${monsterDamage} daño.`
+      battle.message = `${poisonText}Ronda ${battle.round}: ${attackText}. ${enemy.name} 🎲${enemyRoll} → ${monsterDamage} daño.`
         + thornText
         + extraHitText
+        + reflectText
+        + (judgmentDamage ? ` ⚡ ¡Juicio divino! El Apóstol inflige ${judgmentDamage} HP adicionales.` : '')
+        + (poisoned ? ` ☠️ ¡Envenenado! Perderás ${enemy.effect.amount} HP al inicio de los próximos ${enemy.effect.turns} turnos.` : '')
         + (drain ? ` ¡El Fantasma drena ${drain} HP y recupera ${drain} HP!` : '')
         + (enemy.effect?.type === 'steal_xp' ? ` Roba ${xpTheft} XP (XP actual: ${hero.xp}).` : '')
         + (newlyRooted ? ' ¡Petunia te atrapa con sus raíces! Perderás tu próximo ataque.' : '')
@@ -200,7 +227,7 @@
     persist(); render();
   });
   $('claim').addEventListener('click', () => { expire(); if (battle.status !== 'won' || battle.claimed) { render(); return; } if (enemy.reward && enemy.reward.type !== 'xp') { alert('Recompensa de objeto pendiente de implementar. No se otorgó XP ni objeto.'); return; } battle.claimed = true; hero.xp += (enemy.xp ?? 0); persist(); render() });
-  $('reset').addEventListener('click', () => { if (!confirm('¿Reiniciar este encuentro de prueba? Restaurará HP a 28 y no restará XP ya reclamado.')) return; hero.hp = hero.maxHp; battle = freshBattle(); persist(); loadEnemy(selectedId) });
+  $('reset').addEventListener('click', () => { if (!confirm(`¿Reiniciar este encuentro de prueba? Restaurará HP a ${hero.maxHp} y no restará XP ya reclamado.`)) return; hero.hp = hero.maxHp; battle = freshBattle(); persist(); loadEnemy(selectedId) });
   $('enemy-select').addEventListener('change', e => loadEnemy(e.target.value));
   for (const e of CATALOG) { const opt = document.createElement('option'); opt.value = e.id; opt.textContent = `Nivel ${e.level} · ${e.name}`; $('enemy-select').append(opt) }
   window.MusculesDemo = { state: () => structuredClone({ hero, battle, enemy }), reset: () => $('reset').click(), expire: () => { battle.expiresAt = Date.now() - 1; persist(); render() }, win: () => { if (battle.status !== 'active') return; battle.enemyHp = 0; battle.status = 'won'; battle.message = 'Victoria forzada para probar la pantalla'; persist(); render() }, select: loadEnemy };
