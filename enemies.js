@@ -156,7 +156,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 5,
     "xp": 25,
     "armor": 0,
-    "ability": "Habilidad especial pendiente (v0.3)"
+    "ability": "Ataque coordinado: 25% de causar 2 HP adicionales al contraatacar",
+    "effect": { "type": "extra_hit", "chance": 0.25, "amount": 2 }
   },
   {
     "id": "pescado",
@@ -167,7 +168,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 12,
     "xp": null,
     "armor": 0,
-    "ability": "Habilidad especial pendiente (v0.3)",
+    "ability": "Peleas bajo el agua: −5 ATK de Neo durante el combate",
+    "effect": { "type": "underwater_atk", "amount": 5 },
     "reward": {
       "type": "item",
       "description": "Poción (por definir identificador)"
@@ -182,7 +184,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 15,
     "xp": null,
     "armor": 0,
-    "ability": "Neo no puede atacar durante los primeros 2 turnos (pendiente)",
+    "ability": "Neo pierde únicamente su primer turno de ataque",
+    "effect": { "type": "first_turn_block" },
     "reward": {
       "type": "random_item",
       "description": "Botín aleatorio"
@@ -197,7 +200,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 5,
     "xp": null,
     "armor": 0,
-    "ability": "Roba 2 HP por turno mientras vive (pendiente)",
+    "ability": "Roba 2 HP por contraataque y recupera la misma cantidad",
+    "effect": { "type": "life_drain", "amount": 2 },
     "reward": {
       "type": "random_item",
       "description": "Botín aleatorio"
@@ -212,7 +216,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 7,
     "xp": 25,
     "armor": 0,
-    "ability": "Habilidad especial pendiente (v0.3)"
+    "ability": "Mordida sorpresa: 20% de causar 3 HP adicionales al contraatacar",
+    "effect": { "type": "extra_hit", "chance": 0.20, "amount": 3 }
   },
   {
     "id": "mini",

@@ -1,4 +1,4 @@
-/* Muscules v0.4.4: bestiario dinámico, demo local. No sincroniza con Supabase. */
+/* Muscules v0.5: bestiario dinámico, demo local. No sincroniza con Supabase. */
 (() => {
   'use strict';
   const HERO_KEY = 'muscules_neo_stats_v01';
@@ -44,7 +44,8 @@
         battle.heroHp = hero.hp;
         battle.message = `${enemy.name} te quita ${openingDamage} HP al comenzar. ¡Neo ataca primero!`;
         if (hero.hp === 0) { battle.status = 'lost'; battle.reason = 'hp'; }
-      } else if (enemy.effect?.type === 'opening_sloth' && Math.random() < enemy.effect.chance) {
+      }
+      if (enemy.effect?.type === 'opening_sloth' && Math.random() < enemy.effect.chance) {
         battle.slothAttacks = enemy.effect.attacks;
         battle.message = `¡${enemy.name} contagia su pereza! Tus próximos ${battle.slothAttacks} ataques hacen ${enemy.effect.amount} puntos menos de daño.`;
       }
@@ -85,21 +86,27 @@
     // Raíces: se consume el turno atrapado sin tirada de Neo.
     const wasRooted = battle.rooted === true;
     battle.rooted = false;
-    const neoRoll = wasRooted ? null : roll();
-    const blocked = !wasRooted && enemy.effect?.type === 'roll_immunity' && neoRoll <= enemy.effect.threshold;
-    const confused = !wasRooted && !blocked && enemy.effect?.type === 'confusion'
+    // Triangulón: solo el primer turno de Neo queda bloqueado.
+    const triangleBlocked = enemy.effect?.type === 'first_turn_block' && battle.round === 0;
+    const cannotAttack = wasRooted || triangleBlocked;
+    const neoRoll = cannotAttack ? null : roll();
+    const blocked = !cannotAttack && enemy.effect?.type === 'roll_immunity' && neoRoll <= enemy.effect.threshold;
+    const confused = !cannotAttack && !blocked && enemy.effect?.type === 'confusion'
       && Math.random() < enemy.effect.chance;
-    const baseDamage = wasRooted || blocked ? 0 : Math.max(1, Math.floor(neoRoll / 2) + Math.floor(hero.atk / 5) - enemy.armor);
+    // Pescado: -5 ATK solo para este encuentro; hero.atk no se modifica.
+    const effectiveAtk = Math.max(0, hero.atk - (enemy.effect?.type === 'underwater_atk' ? enemy.effect.amount : 0));
+    const baseDamage = cannotAttack || blocked ? 0 : Math.max(1, Math.floor(neoRoll / 2) + Math.floor(effectiveAtk / 5) - enemy.armor);
     // Solo se consumen los debuffs cuando Neo efectivamente intenta atacar.
-    const slothPenalty = !wasRooted && (battle.slothAttacks || 0) > 0 ? (enemy.effect?.type === 'opening_sloth' ? enemy.effect.amount : 0) : 0;
+    const slothPenalty = !cannotAttack && (battle.slothAttacks || 0) > 0 ? (enemy.effect?.type === 'opening_sloth' ? enemy.effect.amount : 0) : 0;
     if (slothPenalty) battle.slothAttacks--;
-    const owlPenalty = !wasRooted && battle.owlPenalty ? (enemy.effect?.type === 'owl_foresight' ? enemy.effect.amount : 0) : 0;
-    if (!wasRooted) battle.owlPenalty = false;
+    const owlPenalty = !cannotAttack && battle.owlPenalty ? (enemy.effect?.type === 'owl_foresight' ? enemy.effect.amount : 0) : 0;
+    if (!cannotAttack) battle.owlPenalty = false;
     const confusedDamage = confused ? Math.max(1, Math.floor(baseDamage / 2)) : baseDamage;
-    const neoDamage = blocked || wasRooted ? 0 : Math.max(0, confusedDamage - slothPenalty - owlPenalty);
+    const neoDamage = blocked || cannotAttack ? 0 : Math.max(0, confusedDamage - slothPenalty - owlPenalty);
     battle.enemyHp = Math.max(0, battle.enemyHp - neoDamage); battle.round++;
     const penalties = [confused ? 'esporas' : '', slothPenalty ? `pereza −${slothPenalty}` : '', owlPenalty ? `anticipación −${owlPenalty}` : ''].filter(Boolean);
     const attackText = wasRooted ? 'Neo está atrapado y pierde su ataque (0 daño)'
+      : triangleBlocked ? 'Triangulón bloquea el primer ataque de Neo (0 daño)'
       : `Neo 🎲${neoRoll} → ${blocked ? 'ataque bloqueado (0 daño)' : `${neoDamage} daño${penalties.length ? ` (${penalties.join(', ')})` : ''}`}`;
     // Espinas: se activan cuando Rama-miro recibe daño, incluso si el golpe lo derrota.
     const thornDamage = neoDamage > 0 && enemy.effect?.type === 'thorns' && Math.random() < enemy.effect.chance
@@ -115,7 +122,19 @@
     } else {
       const enemyRoll = roll();
       const monsterDamage = Math.max(1, Math.floor(enemyRoll / 4) + Math.max(1, Math.floor(enemy.atk * 3 / 8)));
-      hero.hp = Math.max(0, hero.hp - monsterDamage); battle.heroHp = hero.hp;
+      hero.hp = Math.max(0, hero.hp - monsterDamage);
+      // Diablillos y Mimic: un golpe adicional solo si el contraataque se realiza.
+      const bonusDamage = enemy.effect?.type === 'extra_hit' && Math.random() < enemy.effect.chance
+        ? Math.max(0, Number(enemy.effect.amount) || 0) : 0;
+      if (bonusDamage) hero.hp = Math.max(0, hero.hp - bonusDamage);
+      // Fantasma: drena hasta 2 HP reales y se cura la misma cantidad.
+      const drain = enemy.effect?.type === 'life_drain'
+        ? Math.min(hero.hp, Math.max(0, Number(enemy.effect.amount) || 0)) : 0;
+      if (drain) {
+        hero.hp -= drain;
+        battle.enemyHp = Math.min(enemy.hp, battle.enemyHp + drain);
+      }
+      battle.heroHp = hero.hp;
       const xpTheft = enemy.effect?.type === 'steal_xp'
         ? Math.min(Math.max(0, hero.xp), Math.max(0, Number(enemy.effect.amount) || 0)) : 0;
       if (xpTheft > 0) { hero.xp -= xpTheft; battle.xpStolen = (battle.xpStolen || 0) + xpTheft; }
@@ -126,8 +145,15 @@
       const owlTriggered = hero.hp > 0 && enemy.effect?.type === 'owl_foresight'
         && Math.random() < enemy.effect.chance;
       if (owlTriggered) battle.owlPenalty = true;
+      const extraHitText = bonusDamage
+        ? enemy.id === 'diablillos'
+          ? ' 😈 ¡Ataque coordinado! Los Diablillos infligen 2 HP adicionales.'
+          : ` ¡Golpe adicional! ${bonusDamage} HP extra de daño.`
+        : '';
       battle.message = `Ronda ${battle.round}: ${attackText}. ${enemy.name} 🎲${enemyRoll} → ${monsterDamage} daño.`
         + thornText
+        + extraHitText
+        + (drain ? ` ¡El Fantasma drena ${drain} HP y recupera ${drain} HP!` : '')
         + (enemy.effect?.type === 'steal_xp' ? ` Roba ${xpTheft} XP (XP actual: ${hero.xp}).` : '')
         + (newlyRooted ? ' ¡Petunia te atrapa con sus raíces! Perderás tu próximo ataque.' : '')
         + (owlTriggered ? ` ¡El Búho anticipa tu próximo ataque! Harás ${enemy.effect.amount} puntos menos de daño.` : '');
@@ -135,7 +161,7 @@
     }
     persist(); render();
   });
-  $('claim').addEventListener('click', () => { expire(); if (battle.status !== 'won' || battle.claimed) { render(); return; } if (enemy.reward && enemy.reward.type !== 'xp') { alert('Recompensa especial pendiente de implementar; no se añadirá XP ficticio.'); return; } battle.claimed = true; hero.xp += (enemy.xp ?? 0); persist(); render() });
+  $('claim').addEventListener('click', () => { expire(); if (battle.status !== 'won' || battle.claimed) { render(); return; } if (enemy.reward && enemy.reward.type !== 'xp') { alert('Recompensa de objeto pendiente de implementar. No se otorgó XP ni objeto.'); return; } battle.claimed = true; hero.xp += (enemy.xp ?? 0); persist(); render() });
   $('reset').addEventListener('click', () => { if (!confirm('¿Reiniciar este encuentro de prueba? Restaurará HP a 28 y no restará XP ya reclamado.')) return; hero.hp = hero.maxHp; battle = freshBattle(); persist(); loadEnemy(selectedId) });
   $('enemy-select').addEventListener('change', e => loadEnemy(e.target.value));
   for (const e of CATALOG) { const opt = document.createElement('option'); opt.value = e.id; opt.textContent = `Nivel ${e.level} · ${e.name}`; $('enemy-select').append(opt) }
