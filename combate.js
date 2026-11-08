@@ -1,4 +1,4 @@
-/* Muscules v0.5: bestiario dinámico, demo local. No sincroniza con Supabase. */
+/* Muscules v0.5.1: bestiario dinámico, demo local. No sincroniza con Supabase. */
 (() => {
   'use strict';
   const HERO_KEY = 'muscules_neo_stats_v01';
@@ -16,7 +16,22 @@
   let selectedId = new URLSearchParams(location.search).get('enemy') || 'carrotnero';
   if (!CATALOG.some(e => e.id === selectedId)) selectedId = 'carrotnero';
   let enemy, battle, battleKey;
-  function freshBattle() { return { id: `demo-${enemy.id}`, enemyId: enemy.id, startedAt: Date.now(), expiresAt: Date.now() + DURATION, enemyHp: enemy.hp, heroHp: hero.hp, status: hero.hp > 0 ? 'active' : 'lost', reason: hero.hp > 0 ? null : 'hp', round: 0, claimed: false, openingApplied: false, xpStolen: 0, rooted: false, slothAttacks: 0, owlPenalty: false, message: `¡${enemy.name} te desafía! Neo ataca primero.` }; }
+  function freshBattle() { return { id: `demo-${enemy.id}`, enemyId: enemy.id, startedAt: Date.now(), expiresAt: Date.now() + DURATION, enemyHp: enemy.hp, heroHp: hero.hp, status: hero.hp > 0 ? 'active' : 'lost', reason: hero.hp > 0 ? null : 'hp', round: 0, claimed: false, openingApplied: false, xpStolen: 0, rooted: false, slothAttacks: 0, owlPenalty: false, lapidaMaxHp: null, lapidaHp: null, message: `¡${enemy.name} te desafía! Neo ataca primero.` }; }
+  // La Lápida limita la vida DISPONIBLE, sin borrar la mitad protegida.
+  // hero.hp siempre guarda la vida real restante de Neo.
+  function isLapida() { return enemy?.effect?.type === 'half_hp'; }
+  function takeDamage(amount) {
+    const incoming = Math.max(0, Number(amount) || 0);
+    const applied = isLapida() ? Math.min(incoming, Math.max(0, battle.lapidaHp ?? 0)) : incoming;
+    hero.hp = Math.max(0, hero.hp - applied);
+    if (isLapida()) battle.lapidaHp = Math.max(0, battle.lapidaHp - applied);
+    battle.heroHp = hero.hp;
+    return applied;
+  }
+  function heroDefeated() { return hero.hp <= 0 || (isLapida() && battle.lapidaHp <= 0); }
+  function markHeroDefeat() {
+    battle.status = 'lost'; battle.reason = isLapida() && hero.hp > 0 ? 'lapida' : 'hp';
+  }
   function persist() { save(battleKey, battle); save(HERO_KEY, hero) }
   function loadEnemy(id) {
     const source = CATALOG.find(e => e.id === id); if (!source) return;
@@ -49,10 +64,28 @@
         battle.slothAttacks = enemy.effect.attacks;
         battle.message = `¡${enemy.name} contagia su pereza! Tus próximos ${battle.slothAttacks} ataques hacen ${enemy.effect.amount} puntos menos de daño.`;
       }
+      if (isLapida()) {
+        battle.lapidaMaxHp = Math.floor(hero.hp / 2);
+        battle.lapidaHp = battle.lapidaMaxHp;
+        battle.message = `¡Lápida Llorona sella tu energía! Peleas con ${battle.lapidaHp} HP disponibles; el resto queda protegido.`;
+        if (battle.lapidaHp === 0) markHeroDefeat();
+      }
       battle.openingApplied = true;
     }
     // No restaurar HP desde una batalla anterior si el HP global ya cambió.
-    if (battle.status === 'active' && hero.hp <= 0) { battle.status = 'lost'; battle.reason = 'hp'; battle.heroHp = 0; }
+    // Encuentros anteriores al parche: reiniciar Lápida desde cero para evitar
+    // inventar una reserva de HP después de que ya hubo daño.
+    if (isLapida() && battle.status === 'active' && battle.lapidaHp == null) {
+      if (battle.round === 0) {
+        battle.lapidaMaxHp = Math.floor(hero.hp / 2);
+        battle.lapidaHp = battle.lapidaMaxHp;
+        battle.message = `¡Lápida Llorona sella tu energía! Peleas con ${battle.lapidaHp} HP disponibles; el resto queda protegido.`;
+      } else {
+        battle.status = 'lost'; battle.reason = 'legacy';
+        battle.message = 'Encuentro anterior a v0.5.1: usa Reiniciar prueba para probar la Lápida sin datos inconsistentes.';
+      }
+    }
+    if (battle.status === 'active' && heroDefeated()) markHeroDefeat();
     $('enemy-select').value = id;
     $('enemy-name').textContent = enemy.name;
     $('enemy-image').src = enemy.image; $('enemy-image').alt = enemy.name;
@@ -73,16 +106,21 @@
     document.querySelector('.timer').classList.toggle('danger', remaining < 3600000);
     $('battle').hidden = battle.status !== 'active'; $('win').hidden = battle.status !== 'won'; $('lose').hidden = battle.status !== 'lost';
     $('enemy-hp').textContent = `${battle.enemyHp}/${enemy.hp}`; $('enemy-bar').style.width = `${100 * clamp(battle.enemyHp / enemy.hp, 0, 1)}%`;
-    $('hero-hp').textContent = `${hero.hp}/${hero.maxHp} HP`; $('hero-bar').style.width = `${100 * clamp(hero.hp / hero.maxHp, 0, 1)}%`;
+    const visibleHp = isLapida() ? (battle.lapidaHp ?? 0) : hero.hp;
+    const visibleMaxHp = isLapida() ? (battle.lapidaMaxHp ?? 1) : hero.maxHp;
+    $('hero-hp').textContent = isLapida()
+      ? `${visibleHp}/${visibleMaxHp} HP · ${hero.hp}/${hero.maxHp} reales`
+      : `${hero.hp}/${hero.maxHp} HP`;
+    $('hero-bar').style.width = `${100 * clamp(visibleHp / Math.max(1, visibleMaxHp), 0, 1)}%`;
     $('log').textContent = battle.message; $('roll').disabled = battle.status !== 'active' || hero.hp <= 0;
     $('claim').disabled = battle.claimed; $('claim').textContent = battle.claimed ? 'Reclamado ✓' : 'Reclamar';
     $('claim-status').textContent = battle.claimed ? `XP total: ${hero.xp}` : '';
-    $('lose-reason').textContent = battle.reason === 'time' ? 'Tiempo agotado' : 'Fallecido';
-    $('lose-detail').textContent = battle.reason === 'time' ? `${enemy.name} escapó · Sin penalización de XP` : '0 HP · Esperando a la sexy dm para revivir';
+    $('lose-reason').textContent = battle.reason === 'time' ? 'Tiempo agotado' : battle.reason === 'lapida' ? 'Derrotado por Lápida' : battle.reason === 'legacy' ? 'Reinicia esta prueba' : 'Fallecido';
+    $('lose-detail').textContent = battle.reason === 'time' ? `${enemy.name} escapó · Sin penalización de XP` : battle.reason === 'lapida' ? `Se agotó tu HP disponible · Conservas ${hero.hp}/${hero.maxHp} HP reales` : battle.reason === 'legacy' ? 'Prueba anterior incompatible; reinicia el encuentro' : '0 HP · Esperando a la sexy dm para revivir';
   }
   $('roll').addEventListener('click', () => {
     expire(); if (battle.status !== 'active') { render(); return; }
-    if (hero.hp <= 0) { battle.status = 'lost'; battle.reason = 'hp'; persist(); render(); return; }
+    if (heroDefeated()) { markHeroDefeat(); persist(); render(); return; }
     // Raíces: se consume el turno atrapado sin tirada de Neo.
     const wasRooted = battle.rooted === true;
     battle.rooted = false;
@@ -111,10 +149,10 @@
     // Espinas: se activan cuando Rama-miro recibe daño, incluso si el golpe lo derrota.
     const thornDamage = neoDamage > 0 && enemy.effect?.type === 'thorns' && Math.random() < enemy.effect.chance
       ? Math.max(0, Number(enemy.effect.amount) || 0) : 0;
-    if (thornDamage) { hero.hp = Math.max(0, hero.hp - thornDamage); battle.heroHp = hero.hp; }
+    if (thornDamage) takeDamage(thornDamage);
     const thornText = thornDamage ? ` ¡Las espinas devuelven ${thornDamage} HP de daño!` : '';
-    if (hero.hp === 0) {
-      battle.status = 'lost'; battle.reason = 'hp';
+    if (heroDefeated()) {
+      markHeroDefeat();
       battle.message = `Ronda ${battle.round}: ${attackText}.${thornText} Neo ha caído.`;
     } else if (battle.enemyHp === 0) {
       battle.status = 'won';
@@ -122,16 +160,16 @@
     } else {
       const enemyRoll = roll();
       const monsterDamage = Math.max(1, Math.floor(enemyRoll / 4) + Math.max(1, Math.floor(enemy.atk * 3 / 8)));
-      hero.hp = Math.max(0, hero.hp - monsterDamage);
+      takeDamage(monsterDamage);
       // Diablillos y Mimic: un golpe adicional solo si el contraataque se realiza.
       const bonusDamage = enemy.effect?.type === 'extra_hit' && Math.random() < enemy.effect.chance
         ? Math.max(0, Number(enemy.effect.amount) || 0) : 0;
-      if (bonusDamage) hero.hp = Math.max(0, hero.hp - bonusDamage);
+      if (bonusDamage) takeDamage(bonusDamage);
       // Fantasma: drena hasta 2 HP reales y se cura la misma cantidad.
       const drain = enemy.effect?.type === 'life_drain'
         ? Math.min(hero.hp, Math.max(0, Number(enemy.effect.amount) || 0)) : 0;
       if (drain) {
-        hero.hp -= drain;
+        takeDamage(drain);
         battle.enemyHp = Math.min(enemy.hp, battle.enemyHp + drain);
       }
       battle.heroHp = hero.hp;
@@ -157,7 +195,7 @@
         + (enemy.effect?.type === 'steal_xp' ? ` Roba ${xpTheft} XP (XP actual: ${hero.xp}).` : '')
         + (newlyRooted ? ' ¡Petunia te atrapa con sus raíces! Perderás tu próximo ataque.' : '')
         + (owlTriggered ? ` ¡El Búho anticipa tu próximo ataque! Harás ${enemy.effect.amount} puntos menos de daño.` : '');
-      if (hero.hp === 0) { battle.status = 'lost'; battle.reason = 'hp'; battle.message += ' Neo ha caído.'; }
+      if (heroDefeated()) { markHeroDefeat(); battle.message += isLapida() && hero.hp > 0 ? ' ¡Se agotó tu HP disponible! La mitad protegida permanece intacta.' : ' Neo ha caído.'; }
     }
     persist(); render();
   });
