@@ -39,7 +39,9 @@
           <div id="hero-bar"></div>
         </div>
         <p class="log" id="log" role="status">¡Carrotñero te desafía! Neo ataca primero.</p>
-        <button class="action" id="roll">🎲 Tirar dado</button>
+        <div class="battle-actions"><button class="action" id="roll">🎲 Tirar dado</button><button id="inventory-toggle"
+            class="inventory-toggle" aria-label="Abrir inventario" title="Inventario"><img
+              src="assets/items/inventory-button.png" alt=""></button></div>
         <button class="subaction" id="reset">Reiniciar prueba</button>
       </div>
       <a class="exit" href="index.html">Salir</a>
@@ -57,9 +59,24 @@
       <h1>Derrota</h1><img class="result-monster" id="lose-image" src="assets/combate/carrotnero.png" alt="Enemigo">
       <div class="result-copy">
         <p id="lose-reason">Fallecido</p>
-        <p id="lose-detail">Sin penalización de XP</p><a class="result-exit" href="index.html">Salir</a>
+        <p id="lose-detail">Sin penalización de XP</p><button id="revive-button" class="action" hidden>❤️ Usar
+          resurrección</button><a class="result-exit" href="index.html">Salir</a>
       </div>
     </section>
+    <div id="inventory-overlay" class="inventory-overlay" hidden>
+      <div id="inventory-grid-view" class="inventory-grid-view" role="dialog" aria-label="Inventario">
+        <button id="inventory-close" class="inventory-close" aria-label="Cerrar"><img src="assets/items/close.png"
+            alt=""></button>
+        <div id="inventory-grid" class="inventory-grid"></div>
+      </div>
+      <div id="inventory-detail" class="inventory-detail" role="dialog" aria-label="Detalle del objeto" hidden>
+        <button id="inventory-detail-close" class="inventory-close" aria-label="Volver al inventario"><img
+            src="assets/items/close.png" alt=""></button>
+        <div id="inventory-card" class="inventory-card"></div>
+        <button id="inventory-apply" class="inventory-apply">Aplicar</button>
+        <p id="inventory-hint" class="inventory-hint"></p>
+      </div>
+    </div>
   </main>
   <script src="enemies.js" defer></script>
   <script src="combate.js" defer></script>

@@ -391,3 +391,169 @@ header {
 .monster {
     height: clamp(115px, 22vh, 215px)
 }
+
+/* Muscules v0.7: inventario */
+.battle-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 28px;
+    position: relative;
+    min-height: 45px;
+}
+
+.inventory-toggle {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.inventory-toggle img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.inventory-toggle.is-unavailable {
+    filter: grayscale(1);
+    opacity: .48;
+    cursor: not-allowed;
+}
+
+.inventory-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    background: rgba(0, 0, 0, .76);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.inventory-overlay[hidden],
+.inventory-grid-view[hidden],
+.inventory-detail[hidden] {
+    display: none !important;
+}
+
+.inventory-grid-view {
+    position: relative;
+    width: min(294px, 85%);
+}
+
+.inventory-grid {
+    background: #663909;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.inventory-slot {
+    aspect-ratio: 1;
+    border: 0;
+    background: #d9d9d9;
+    padding: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.inventory-slot:disabled {
+    cursor: default;
+}
+
+.inventory-slot img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.inventory-slot.slot-unusable img {
+    filter: grayscale(.65);
+    opacity: .6;
+}
+
+.inventory-close {
+    position: absolute;
+    top: -35px;
+    right: -3px;
+    border: 0;
+    background: none;
+    padding: 5px;
+    cursor: pointer;
+    z-index: 2;
+}
+
+.inventory-close img {
+    width: 19px;
+    height: 19px;
+    object-fit: contain;
+}
+
+.inventory-detail {
+    width: min(355px, 95%);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.inventory-card {
+    width: 100%;
+}
+
+.inventory-card img {
+    width: 100%;
+    display: block;
+    height: auto;
+    max-height: min(calc(100dvh - 180px), 560px);
+    object-fit: contain;
+}
+
+.inventory-card p {
+    background: #9c9c30;
+    color: black;
+    padding: 35px 20px;
+    text-align: center;
+    font-size: 20px;
+}
+
+.inventory-apply {
+    margin-top: 12px;
+    background: transparent;
+    border: 0;
+    color: white;
+    font: 21px 'MedievalSharp', Georgia, serif;
+    cursor: pointer;
+}
+
+.inventory-apply:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+.inventory-hint {
+    min-height: 20px;
+    margin: 5px 0 0;
+    text-align: center;
+    font: 12px Arial, sans-serif;
+}
+
+#revive-button {
+    display: block;
+    margin: 12px auto 0;
+}
+
+#revive-button[hidden] {
+    display: none;
+}

@@ -1,12 +1,56 @@
-/* Muscules v0.6: bestiario dinámico, demo local. No sincroniza con Supabase. */
+/* Muscules v0.7: bestiario dinámico, demo local. No sincroniza con Supabase. */
 (() => {
   'use strict';
   const HERO_KEY = 'muscules_neo_stats_v01';
+  const INVENTORY_KEY = 'muscules_neo_inventory_v01';
+  const read = key => { try { return JSON.parse(localStorage.getItem(key)) } catch { return null } };
+  const ITEM_POOL = ['bola', 'llave', 'totem', 'encendedor', 'ojo', 'maaaake', 'fuego', 'gatito', 'stirfry', 'miau', 'morision', 'cumbia', 'galleta', 'sherma', 'gusanito'];
+  const ITEMS = {
+    bola: ['Bola de cristal', 'bola-de-cristal.png', 'bola de cristal.png', 'special'],
+    llave: ['Llave de fuga', 'llave-de-fuga.png', 'llave de fuga.png', 'escape'],
+    totem: ['Tótem maldito', 'totem-maldito.png', 'totem maldito.png', 'atk_battle', 2],
+    encendedor: ['Encendedor arcoíris', 'encendedor-de-arcoiris.png', 'encendedor de arcoiris.png', 'damage', 3],
+    ojo: ['Ojo cósmico', 'ojo-cosmico.png', 'ojo cosmico.png', 'hp_bonus', 5],
+    maaaake: ['Maaaake-up', 'maaaake-up.png', 'maaaake up.png', 'special'],
+    fuego: ['Fuego en la espada', 'fuego-en-la-espada.png', 'fuego en la espada.png', 'atk_battle', 2],
+    gatito: ['Gatito fantasma', 'gatito-fantasma.png', 'gatito fantasma.png', 'revive', 10],
+    stirfry: ['Stirfry', 'stirfry.png', 'stirfry.png', 'heal', 15],
+    miau: ['¿Miau?', '¿miau?.png', '¿miau?.png', 'revive_full'],
+    morision: ['Pócima de la morisión', 'pocima-de-la-morision.png', 'pocima de la morision.png', 'instant_kill'],
+    cumbia: ['Poción de la cumbia', 'pocion-de-la-cumbia.png', 'pocion-de-la-cumbia.png', 'heal_full'],
+    galleta: ['Galleta de conejito', 'galleta-de-conejo-moreno.png', 'galleta de conejo moreno.png', 'heal_full'],
+    sherma: ['Sherma', 'sherma.png', 'sherma.png', 'atk_first', 5],
+    gusanito: ['Gusanito', 'gusanito.png', 'gusanito.png', 'atk_battle', 3],
+    vida_extra: ['Vida extra', null, null, 'revive_full']
+  };
+  const ITEM_CARDS = {
+    bola: 'bola-de-cristal.png',
+    llave: 'llave-de-fuga.png',
+    totem: 'totem-maldito.png',
+    encendedor: 'encendedor-arcoiris.png',
+    ojo: 'ojo-cosmico.png',
+    maaaake: 'maaake-up.png',
+    fuego: 'fuego-en-la-espada.png',
+    gatito: 'gatito-fantasma.png',
+    stirfry: 'stirfry.png',
+    miau: '¿miau?.png',
+    morision: 'pocion-de-la-morision.png',
+    cumbia: 'pocima-de-la-cumbia.png',
+    galleta: 'galleta-de-conejo-moreno.png',
+    sherma: 'sherma.png',
+    gusanito: 'gusanito.png'
+  };
+  const itemIcon = id => ITEMS[id]?.[1] ? `assets/items/${encodeURIComponent(ITEMS[id][1])}` : 'assets/items/inventory-button.png';
+  const itemCard = id => ITEM_CARDS[id] ? `assets/cards/${encodeURIComponent(ITEM_CARDS[id])}` : null;
+  let inventory = read(INVENTORY_KEY);
+  if (!Array.isArray(inventory)) inventory = [];
+  inventory = inventory.filter(id => ITEMS[id]).slice(0, 15);
+  let chosenSlot = -1;
+  let inventoryView = 'closed';
   const BATTLE_PREFIX = 'muscules_dynamic_battle_v02_';
   const DURATION = 24 * 60 * 60 * 1000;
   const CATALOG = window.MUSCULES_ENEMIES || [];
   const $ = id => document.getElementById(id);
-  const read = key => { try { return JSON.parse(localStorage.getItem(key)) } catch { return null } };
   const save = (key, value) => localStorage.setItem(key, JSON.stringify(value));
   const roll = () => Math.floor(Math.random() * 20) + 1;
   const clamp = (x, min, max) => Math.min(max, Math.max(min, x));
@@ -16,7 +60,7 @@
   let selectedId = new URLSearchParams(location.search).get('enemy') || 'carrotnero';
   if (!CATALOG.some(e => e.id === selectedId)) selectedId = 'carrotnero';
   let enemy, battle, battleKey;
-  function freshBattle() { return { id: `demo-${enemy.id}`, enemyId: enemy.id, startedAt: Date.now(), expiresAt: Date.now() + DURATION, enemyHp: enemy.hp, heroHp: hero.hp, status: hero.hp > 0 ? 'active' : 'lost', reason: hero.hp > 0 ? null : 'hp', round: 0, claimed: false, openingApplied: false, xpStolen: 0, rooted: false, slothAttacks: 0, owlPenalty: false, lapidaMaxHp: null, lapidaHp: null, poisonTurns: 0, message: `¡${enemy.name} te desafía! Neo ataca primero.` }; }
+  function freshBattle() { return { id: `demo-${enemy.id}`, enemyId: enemy.id, startedAt: Date.now(), expiresAt: Date.now() + DURATION, enemyHp: enemy.hp, heroHp: hero.hp, status: hero.hp > 0 ? 'active' : 'lost', reason: hero.hp > 0 ? null : 'hp', round: 0, claimed: false, openingApplied: false, xpStolen: 0, rooted: false, slothAttacks: 0, owlPenalty: false, itemUsed: false, itemBuff: null, lapidaMaxHp: null, lapidaHp: null, poisonTurns: 0, message: `¡${enemy.name} te desafía! Neo ataca primero.` }; }
   // La Lápida limita la vida DISPONIBLE, sin borrar la mitad protegida.
   // hero.hp siempre guarda la vida real restante de Neo.
   function isLapida() { return enemy?.effect?.type === 'half_hp'; }
@@ -32,11 +76,12 @@
   function markHeroDefeat() {
     battle.status = 'lost'; battle.reason = isLapida() && hero.hp > 0 ? 'lapida' : 'hp';
   }
-  function persist() { save(battleKey, battle); save(HERO_KEY, hero) }
+  function persist() { save(battleKey, battle); save(HERO_KEY, hero); save(INVENTORY_KEY, inventory) }
   function loadEnemy(id) {
     const source = CATALOG.find(e => e.id === id); if (!source) return;
     if (source.hp == null || source.atk == null) { alert(`${source.name} tiene una mecánica especial pendiente; no se puede combatir todavía.`); $('enemy-select').value = selectedId; return; }
     selectedId = id; enemy = demoStats(source); battleKey = BATTLE_PREFIX + id;
+    closeInventory();
     const storedBattle = read(battleKey);
     battle = storedBattle || freshBattle();
     // Compatibilidad con encuentros creados antes de introducir openingApplied:
@@ -92,7 +137,7 @@
     $('win-image').src = enemy.image; $('lose-image').src = enemy.image;
     $('enemy-atk').textContent = enemy.atk;
     $('enemy-ability').textContent = enemy.ability;
-    $('reward-xp').textContent = enemy.reward?.description || `${enemy.xp ?? 0} XP`;
+    $('reward-xp').textContent = enemy.reward?.type === 'extra_life' ? '❤️ Vida extra' : enemy.reward?.description || `${enemy.xp ?? 0} XP`;
     $('demo-note').textContent = source.hp === null ? '⚠️ Estadísticas provisionales: revisa enemies.js' : 'Modo local: sin sincronización';
     history.replaceState(null, '', `?enemy=${encodeURIComponent(id)}`);
     persist(); render();
@@ -114,10 +159,109 @@
     $('hero-bar').style.width = `${100 * clamp(visibleHp / Math.max(1, visibleMaxHp), 0, 1)}%`;
     $('log').textContent = battle.message; $('roll').disabled = battle.status !== 'active' || hero.hp <= 0;
     $('claim').disabled = battle.claimed; $('claim').textContent = battle.claimed ? 'Reclamado ✓' : 'Reclamar';
-    $('claim-status').textContent = battle.claimed ? `XP total: ${hero.xp}` : '';
-    $('lose-reason').textContent = battle.reason === 'time' ? 'Tiempo agotado' : battle.reason === 'lapida' ? 'Derrotado por Lápida' : battle.reason === 'legacy' ? 'Reinicia esta prueba' : 'Fallecido';
-    $('lose-detail').textContent = battle.reason === 'time' ? `${enemy.name} escapó · Sin penalización de XP` : battle.reason === 'lapida' ? `Se agotó tu HP disponible · Conservas ${hero.hp}/${hero.maxHp} HP reales` : battle.reason === 'legacy' ? 'Prueba anterior incompatible; reinicia el encuentro' : '0 HP · Esperando a la sexy dm para revivir';
+    $('claim-status').textContent = battle.claimed ? (battle.rewardMessage || `XP total: ${hero.xp}`) : '';
+    $('revive-button').hidden = !(battle.status === 'lost' && battle.reason === 'hp' && inventory.some(id => isRevive(id)));
+    renderInventoryButton();
+    $('lose-reason').textContent = battle.reason === 'escape' ? 'Escapó' : battle.reason === 'time' ? 'Tiempo agotado' : battle.reason === 'lapida' ? 'Derrotado por Lápida' : battle.reason === 'legacy' ? 'Reinicia esta prueba' : 'Fallecido';
+    $('lose-detail').textContent = battle.reason === 'escape' ? 'Neo utilizó la Llave de fuga' : battle.reason === 'time' ? `${enemy.name} escapó · Sin penalización de XP` : battle.reason === 'lapida' ? `Se agotó tu HP disponible · Conservas ${hero.hp}/${hero.maxHp} HP reales` : battle.reason === 'legacy' ? 'Prueba anterior incompatible; reinicia el encuentro' : '0 HP · Esperando a la sexy dm para revivir';
   }
+  function isRevive(id) { return ['revive', 'revive_full'].includes(ITEMS[id]?.[3]); }
+  function canUse(id) {
+    if (!ITEMS[id]) return false;
+    const kind = ITEMS[id][3];
+    if (kind === 'special') return false; // Sin mecánica aprobada: no consumir.
+    if (isRevive(id)) return battle.status === 'lost' && battle.reason === 'hp';
+    if (battle.status !== 'active' || battle.itemUsed) return false;
+    if (kind === 'atk_first' && battle.round !== 0) return false;
+    if (kind === 'heal' || kind === 'heal_full') return hero.hp > 0 && hero.hp < hero.maxHp;
+    if (kind === 'hp_bonus') return hero.hp > 0 && hero.hp < hero.maxHp;
+    return hero.hp > 0;
+  }
+  function usableInventory() { return inventory.some(canUse); }
+  function renderInventoryButton() {
+    const button = $('inventory-toggle');
+    if (!button) return;
+    button.disabled = !usableInventory();
+    button.classList.toggle('is-unavailable', !usableInventory());
+  }
+  function closeInventory() {
+    inventoryView = 'closed'; chosenSlot = -1;
+    if ($('inventory-overlay')) $('inventory-overlay').hidden = true;
+    if ($('inventory-detail')) $('inventory-detail').hidden = true;
+    if ($('inventory-grid-view')) $('inventory-grid-view').hidden = false;
+  }
+  function showGrid() {
+    inventoryView = 'grid'; chosenSlot = -1;
+    $('inventory-overlay').hidden = false;
+    $('inventory-grid-view').hidden = false;
+    $('inventory-detail').hidden = true;
+    const grid = $('inventory-grid'); grid.replaceChildren();
+    for (let i = 0; i < 15; i++) {
+      const slot = document.createElement('button'); slot.type = 'button'; slot.className = 'inventory-slot';
+      const id = inventory[i];
+      slot.setAttribute('aria-label', id ? ITEMS[id][0] : 'Espacio vacío');
+      if (id) {
+        const img = document.createElement('img'); img.src = itemIcon(id); img.alt = ''; slot.append(img);
+        if (!canUse(id)) slot.classList.add('slot-unusable');
+        slot.addEventListener('click', () => showDetail(i));
+      } else slot.disabled = true;
+      grid.append(slot);
+    }
+  }
+  function showDetail(index) {
+    const id = inventory[index]; if (!id) return;
+    chosenSlot = index; inventoryView = 'detail';
+    $('inventory-grid-view').hidden = true; $('inventory-detail').hidden = false;
+    const card = $('inventory-card'); card.replaceChildren();
+    const image = itemCard(id);
+    if (image) { const img = document.createElement('img'); img.src = image; img.alt = `Tarjeta: ${ITEMS[id][0]}`; card.append(img); }
+    else { const text = document.createElement('p'); text.textContent = `❤️ ${ITEMS[id][0]} — Revive con HP completo`; card.append(text); }
+    $('inventory-apply').disabled = !canUse(id);
+    $('inventory-hint').textContent = canUse(id) ? '' : (ITEMS[id][3] === 'special' ? 'Efecto pendiente de definir' : 'No se puede utilizar en este momento');
+  }
+  function restartWithLife(amount) {
+    hero.hp = Math.min(hero.maxHp, amount);
+    battle = freshBattle();
+    battle.message = `❤️ ¡Neo ha revivido con ${hero.hp} HP! ${enemy.name} vuelve con toda su vida.`;
+    // El efecto de apertura se procesa al recargar este encuentro.
+    persist(); loadEnemy(selectedId);
+  }
+  function applyItem() {
+    const id = inventory[chosenSlot]; if (!id || !canUse(id)) return;
+    const name = ITEMS[id][0]; const value = ITEMS[id][4]; const kind = ITEMS[id][3];
+    if (isRevive(id)) {
+      inventory.splice(chosenSlot, 1); closeInventory();
+      restartWithLife(kind === 'revive_full' ? hero.maxHp : value);
+      return;
+    }
+    // Solo se consume tras validar el efecto.
+    let note = `🎒 Neo utiliza ${name}. `;
+    if (kind === 'heal' || kind === 'heal_full') {
+      const old = hero.hp; hero.hp = Math.min(hero.maxHp, hero.hp + (kind === 'heal_full' ? hero.maxHp : value));
+      note += `Recupera ${hero.hp - old} HP.`;
+    } else if (kind === 'hp_bonus') {
+      const old = hero.hp; hero.hp = Math.min(hero.maxHp, hero.hp + value); note += `Recupera ${hero.hp - old} HP (sin superar el máximo).`;
+    } else if (kind === 'atk_battle' || kind === 'atk_first') {
+      battle.itemBuff = { kind, amount: value }; note += `+${value} ATK ${kind === 'atk_first' ? 'en el primer ataque' : 'durante este combate'}.`;
+    } else if (kind === 'damage' || kind === 'instant_kill') {
+      const damage = kind === 'instant_kill' ? battle.enemyHp : value;
+      battle.enemyHp = Math.max(0, battle.enemyHp - damage); note += kind === 'instant_kill' ? '¡El enemigo cae instantáneamente!' : `Inflige ${damage} de daño directo.`;
+    } else if (kind === 'escape') {
+      battle.status = 'lost'; battle.reason = 'escape'; note += 'Neo escapó del combate.';
+    } else return;
+    battle.itemUsed = true; battle.heroHp = hero.hp;
+    inventory.splice(chosenSlot, 1);
+    if (battle.enemyHp === 0) { battle.status = 'won'; note += ' ¡Victoria!'; }
+    battle.message = note;
+    closeInventory(); persist(); render();
+  }
+  $('revive-button').addEventListener('click', showGrid);
+  $('inventory-toggle').addEventListener('click', () => { if (usableInventory()) showGrid(); });
+  $('inventory-close').addEventListener('click', closeInventory);
+  $('inventory-detail-close').addEventListener('click', showGrid);
+  $('inventory-apply').addEventListener('click', applyItem);
+  $('inventory-overlay').addEventListener('click', e => { if (e.target === $('inventory-overlay')) closeInventory(); });
+  $('inventory-detail').addEventListener('click', e => { if (e.target === $('inventory-detail')) closeInventory(); });
   $('roll').addEventListener('click', () => {
     expire(); if (battle.status !== 'active') { render(); return; }
     if (heroDefeated()) { markHeroDefeat(); persist(); render(); return; }
@@ -144,7 +288,8 @@
     const confused = !cannotAttack && !blocked && enemy.effect?.type === 'confusion'
       && Math.random() < enemy.effect.chance;
     // Pescado: -5 ATK solo para este encuentro; hero.atk no se modifica.
-    const effectiveAtk = enemy.effect?.type === 'fists_only' ? enemy.effect.atk : Math.max(0, hero.atk - (enemy.effect?.type === 'underwater_atk' ? enemy.effect.amount : 0));
+    const itemBonus = battle.itemBuff && (battle.itemBuff.kind === 'atk_battle' || (battle.itemBuff.kind === 'atk_first' && battle.round === 0)) ? battle.itemBuff.amount : 0;
+    const effectiveAtk = enemy.effect?.type === 'fists_only' ? enemy.effect.atk : Math.max(0, hero.atk + itemBonus - (enemy.effect?.type === 'underwater_atk' ? enemy.effect.amount : 0));
     const baseDamage = cannotAttack || blocked ? 0 : Math.max(1, Math.floor(neoRoll / 2) + Math.floor(effectiveAtk / 5) - enemy.armor);
     // Solo se consumen los debuffs cuando Neo efectivamente intenta atacar.
     const slothPenalty = !cannotAttack && (battle.slothAttacks || 0) > 0 ? (enemy.effect?.type === 'opening_sloth' ? enemy.effect.amount : 0) : 0;
@@ -157,7 +302,7 @@
     const penalties = [confused ? 'esporas' : '', slothPenalty ? `pereza −${slothPenalty}` : '', owlPenalty ? `anticipación −${owlPenalty}` : ''].filter(Boolean);
     const attackText = wasRooted ? 'Neo está atrapado y pierde su ataque (0 daño)'
       : triangleBlocked ? 'Triangulón bloquea el primer ataque de Neo (0 daño)'
-      : `Neo 🎲${neoRoll} → ${blocked ? 'ataque bloqueado (0 daño)' : `${neoDamage} daño${penalties.length ? ` (${penalties.join(', ')})` : ''}`}`;
+        : `Neo 🎲${neoRoll} → ${blocked ? 'ataque bloqueado (0 daño)' : `${neoDamage} daño${penalties.length ? ` (${penalties.join(', ')})` : ''}`}`;
     // Espinas: se activan cuando Rama-miro recibe daño, incluso si el golpe lo derrota.
     const thornDamage = neoDamage > 0 && enemy.effect?.type === 'thorns' && Math.random() < enemy.effect.chance
       ? Math.max(0, Number(enemy.effect.amount) || 0) : 0;
@@ -226,10 +371,21 @@
     }
     persist(); render();
   });
-  $('claim').addEventListener('click', () => { expire(); if (battle.status !== 'won' || battle.claimed) { render(); return; } if (enemy.reward && enemy.reward.type !== 'xp') { alert('Recompensa de objeto pendiente de implementar. No se otorgó XP ni objeto.'); return; } battle.claimed = true; hero.xp += (enemy.xp ?? 0); persist(); render() });
+  $('claim').addEventListener('click', () => {
+    expire(); if (battle.status !== 'won' || battle.claimed) { render(); return; }
+    const reward = enemy.reward;
+    if (!reward || reward.type === 'xp') { hero.xp += enemy.xp || 0; battle.rewardMessage = `XP total: ${hero.xp}`; }
+    else {
+      const id = reward.type === 'extra_life' ? 'vida_extra' : reward.type === 'item' ? 'cumbia' : reward.type === 'random_item' ? ITEM_POOL[Math.floor(Math.random() * ITEM_POOL.length)] : null;
+      if (!id) { alert('Esta recompensa especial todavía no está implementada.'); return; }
+      battle.rewardMessage = inventory.length >= 15 ? `🎒 Inventario lleno: ${ITEMS[id][0]} se descartó.` : `🎒 Obtuviste: ${ITEMS[id][0]}`;
+      if (inventory.length < 15) inventory.push(id);
+    }
+    battle.claimed = true; persist(); render();
+  });
   $('reset').addEventListener('click', () => { if (!confirm(`¿Reiniciar este encuentro de prueba? Restaurará HP a ${hero.maxHp} y no restará XP ya reclamado.`)) return; hero.hp = hero.maxHp; battle = freshBattle(); persist(); loadEnemy(selectedId) });
   $('enemy-select').addEventListener('change', e => loadEnemy(e.target.value));
   for (const e of CATALOG) { const opt = document.createElement('option'); opt.value = e.id; opt.textContent = `Nivel ${e.level} · ${e.name}`; $('enemy-select').append(opt) }
-  window.MusculesDemo = { state: () => structuredClone({ hero, battle, enemy }), reset: () => $('reset').click(), expire: () => { battle.expiresAt = Date.now() - 1; persist(); render() }, win: () => { if (battle.status !== 'active') return; battle.enemyHp = 0; battle.status = 'won'; battle.message = 'Victoria forzada para probar la pantalla'; persist(); render() }, select: loadEnemy };
+  window.MusculesDemo = { inventory: () => [...inventory], grantItem: id => { if (!ITEMS[id] || inventory.length >= 15) return false; inventory.push(id); persist(); render(); return true; }, state: () => structuredClone({ hero, battle, enemy, inventory }), reset: () => $('reset').click(), expire: () => { battle.expiresAt = Date.now() - 1; persist(); render() }, win: () => { if (battle.status !== 'active') return; battle.enemyHp = 0; battle.status = 'won'; battle.message = 'Victoria forzada para probar la pantalla'; persist(); render() }, select: loadEnemy };
   loadEnemy(selectedId); setInterval(render, 1000);
 })();
