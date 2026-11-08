@@ -54,7 +54,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 8,
     "xp": 50,
     "armor": 0,
-    "ability": "Habilidad especial pendiente (v0.3)"
+    "ability": "Pereza contagiosa: 30% al iniciar; −3 daño en los primeros 2 ataques",
+    "effect": { "type": "opening_sloth", "chance": 0.30, "amount": 3, "attacks": 2 }
   },
   {
     "id": "kitty",
@@ -77,7 +78,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 4,
     "xp": 10,
     "armor": 0,
-    "ability": "Habilidad especial pendiente (v0.3)"
+    "ability": "Sabiduría del bosque: 25% por contraataque; −4 daño en el siguiente ataque",
+    "effect": { "type": "owl_foresight", "chance": 0.25, "amount": 4 }
   },
   {
     "id": "bola",
@@ -100,7 +102,8 @@ window.MUSCULES_ENEMIES = [
     "atk": 5,
     "xp": 15,
     "armor": 0,
-    "ability": "Habilidad especial pendiente (v0.3)"
+    "ability": "Espinas vengativas: 20% de devolver 2 HP cuando recibe daño",
+    "effect": { "type": "thorns", "chance": 0.20, "amount": 2 }
   },
   {
     "id": "carrotnero",
