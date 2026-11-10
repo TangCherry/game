@@ -6,22 +6,22 @@
   const read = key => { try { return JSON.parse(localStorage.getItem(key)) } catch { return null } };
   const ITEM_POOL = ['bola', 'llave', 'totem', 'encendedor', 'ojo', 'maaaake', 'fuego', 'gatito', 'stirfry', 'miau', 'morision', 'cumbia', 'galleta', 'sherma', 'gusanito'];
   const ITEMS = {
-    bola: ['Bola de cristal', 'bola-de-cristal.png', 'bola de cristal.png', 'special'],
+    bola: ['Bola de cristal', 'bola-de-cristal.png', 'bola de cristal.png', 'roll_bonus', 1],
     llave: ['Llave de fuga', 'llave-de-fuga.png', 'llave de fuga.png', 'escape'],
     totem: ['Tótem maldito', 'totem-maldito.png', 'totem maldito.png', 'atk_battle', 2],
     encendedor: ['Encendedor arcoíris', 'encendedor-de-arcoiris.png', 'encendedor de arcoiris.png', 'damage', 3],
     ojo: ['Ojo cósmico', 'ojo-cosmico.png', 'ojo cosmico.png', 'hp_bonus', 5],
-    maaaake: ['Maaaake-up', 'maaaake-up.png', 'maaaake up.png', 'special'],
-    fuego: ['Fuego en la espada', 'fuego-en-la-espada.png', 'fuego en la espada.png', 'atk_battle', 2],
+    maaaake: ['Maaaake-up', 'maaaake-up.png', 'maaaake up.png', 'atk_override', 50],
+    fuego: ['Fuego en la espada', 'fuego-en-la-espada.png', 'fuego en la espada.png', 'damage_bonus', 2],
     gatito: ['Gatito fantasma', 'gatito-fantasma.png', 'gatito fantasma.png', 'revive', 10],
     stirfry: ['Stirfry', 'stirfry.png', 'stirfry.png', 'heal', 15],
-    miau: ['¿Miau?', '¿miau?.png', '¿miau?.png', 'revive_full'],
+    miau: ['¿Miau?', '¿miau?.png', '¿miau?.png', 'revive_half', 0.5],
     morision: ['Pócima de la morisión', 'pocima-de-la-morision.png', 'pocima de la morision.png', 'instant_kill'],
     cumbia: ['Poción de la cumbia', 'pocion-de-la-cumbia.png', 'pocion-de-la-cumbia.png', 'heal_full'],
     galleta: ['Galleta de conejito', 'galleta-de-conejo-moreno.png', 'galleta de conejo moreno.png', 'heal_full'],
     sherma: ['Sherma', 'sherma.png', 'sherma.png', 'atk_first', 5],
     gusanito: ['Gusanito', 'gusanito.png', 'gusanito.png', 'atk_battle', 3],
-    vida_extra: ['Vida extra', null, null, 'revive_full']
+    vida_extra: ['Vida extra', 'vida-extra.png', null, 'revive_full']
   };
   const ITEM_CARDS = {
     bola: 'bola-de-cristal.png',
@@ -38,7 +38,8 @@
     cumbia: 'pocima-de-la-cumbia.png',
     galleta: 'galleta-de-conejo-moreno.png',
     sherma: 'sherma.png',
-    gusanito: 'gusanito.png'
+    gusanito: 'gusanito.png',
+    vida_extra: 'vida-extra.png'
   };
   const itemIcon = id => ITEMS[id]?.[1] ? `assets/items/${encodeURIComponent(ITEMS[id][1])}` : 'assets/items/inventory-button.png';
   const itemCard = id => ITEM_CARDS[id] ? `assets/cards/${encodeURIComponent(ITEM_CARDS[id])}` : null;
@@ -76,7 +77,11 @@
   function markHeroDefeat() {
     battle.status = 'lost'; battle.reason = isLapida() && hero.hp > 0 ? 'lapida' : 'hp';
   }
-  function persist() { save(battleKey, battle); save(HERO_KEY, hero); save(INVENTORY_KEY, inventory) }
+  function persist() {
+    if (battle.status !== 'active' && battle.itemBuff?.kind === 'atk_override') battle.itemBuff = null;
+    if (battle.status !== 'active' && battle.itemBuff?.kind === 'damage_bonus') battle.itemBuff = null;
+    save(battleKey, battle); save(HERO_KEY, hero); save(INVENTORY_KEY, inventory);
+  }
   function loadEnemy(id) {
     const source = CATALOG.find(e => e.id === id); if (!source) return;
     if (source.hp == null || source.atk == null) { alert(`${source.name} tiene una mecánica especial pendiente; no se puede combatir todavía.`); $('enemy-select').value = selectedId; return; }
@@ -162,10 +167,11 @@
     $('claim-status').textContent = battle.claimed ? (battle.rewardMessage || `XP total: ${hero.xp}`) : '';
     $('revive-button').hidden = !(battle.status === 'lost' && battle.reason === 'hp' && inventory.some(id => isRevive(id)));
     renderInventoryButton();
+    $('lose').querySelector('h1').textContent = battle.reason === 'escape' ? 'Huida' : 'Derrota';
     $('lose-reason').textContent = battle.reason === 'escape' ? 'Escapó' : battle.reason === 'time' ? 'Tiempo agotado' : battle.reason === 'lapida' ? 'Derrotado por Lápida' : battle.reason === 'legacy' ? 'Reinicia esta prueba' : 'Fallecido';
     $('lose-detail').textContent = battle.reason === 'escape' ? 'Neo utilizó la Llave de fuga' : battle.reason === 'time' ? `${enemy.name} escapó · Sin penalización de XP` : battle.reason === 'lapida' ? `Se agotó tu HP disponible · Conservas ${hero.hp}/${hero.maxHp} HP reales` : battle.reason === 'legacy' ? 'Prueba anterior incompatible; reinicia el encuentro' : '0 HP · Esperando a la sexy dm para revivir';
   }
-  function isRevive(id) { return ['revive', 'revive_full'].includes(ITEMS[id]?.[3]); }
+  function isRevive(id) { return ['revive', 'revive_full', 'revive_half'].includes(ITEMS[id]?.[3]); }
   function canUse(id) {
     if (!ITEMS[id]) return false;
     const kind = ITEMS[id][3];
@@ -231,7 +237,10 @@
     const name = ITEMS[id][0]; const value = ITEMS[id][4]; const kind = ITEMS[id][3];
     if (isRevive(id)) {
       inventory.splice(chosenSlot, 1); closeInventory();
-      restartWithLife(kind === 'revive_full' ? hero.maxHp : value);
+      const reviveHp = kind === 'revive_full'
+        ? hero.maxHp
+        : kind === 'revive_half' ? Math.floor(hero.maxHp * value) : value;
+      restartWithLife(reviveHp);
       return;
     }
     // Solo se consume tras validar el efecto.
@@ -241,8 +250,14 @@
       note += `Recupera ${hero.hp - old} HP.`;
     } else if (kind === 'hp_bonus') {
       const old = hero.hp; hero.hp = Math.min(hero.maxHp, hero.hp + value); note += `Recupera ${hero.hp - old} HP (sin superar el máximo).`;
+    } else if (kind === 'atk_override') {
+      battle.itemBuff = { kind, amount: value }; note = '💖 Neo utiliza Maaaake up! ¡Espada mágica equipada! ATK 50 durante este combate';
     } else if (kind === 'atk_battle' || kind === 'atk_first') {
       battle.itemBuff = { kind, amount: value }; note += `+${value} ATK ${kind === 'atk_first' ? 'en el primer ataque' : 'durante este combate'}.`;
+    } else if (kind === 'damage_bonus') {
+      battle.itemBuff = { kind, amount: value }; note += `+${value} de daño final en cada ataque durante este combate.`;
+    } else if (kind === 'roll_bonus') {
+      battle.itemBuff = { kind, amount: value }; note += `+${value} al dado en tu próximo lanzamiento.`;
     } else if (kind === 'damage' || kind === 'instant_kill') {
       const damage = kind === 'instant_kill' ? battle.enemyHp : value;
       battle.enemyHp = Math.max(0, battle.enemyHp - damage); note += kind === 'instant_kill' ? '¡El enemigo cae instantáneamente!' : `Inflige ${damage} de daño directo.`;
@@ -283,13 +298,17 @@
     // Triangulón: solo el primer turno de Neo queda bloqueado.
     const triangleBlocked = enemy.effect?.type === 'first_turn_block' && battle.round === 0;
     const cannotAttack = wasRooted || triangleBlocked;
-    const neoRoll = cannotAttack ? null : roll();
+    const rollBonus = !cannotAttack && battle.itemBuff?.kind === 'roll_bonus' ? battle.itemBuff.amount : 0;
+    const baseNeoRoll = cannotAttack ? null : roll();
+    const neoRoll = cannotAttack ? null : Math.min(20, baseNeoRoll + rollBonus);
+    if (rollBonus) battle.itemBuff = null;
     const blocked = !cannotAttack && enemy.effect?.type === 'roll_immunity' && neoRoll <= enemy.effect.threshold;
     const confused = !cannotAttack && !blocked && enemy.effect?.type === 'confusion'
       && Math.random() < enemy.effect.chance;
     // Pescado: -5 ATK solo para este encuentro; hero.atk no se modifica.
     const itemBonus = battle.itemBuff && (battle.itemBuff.kind === 'atk_battle' || (battle.itemBuff.kind === 'atk_first' && battle.round === 0)) ? battle.itemBuff.amount : 0;
-    const effectiveAtk = enemy.effect?.type === 'fists_only' ? enemy.effect.atk : Math.max(0, hero.atk + itemBonus - (enemy.effect?.type === 'underwater_atk' ? enemy.effect.amount : 0));
+    const baseAtk = battle.itemBuff?.kind === 'atk_override' ? battle.itemBuff.amount : hero.atk;
+    const effectiveAtk = enemy.effect?.type === 'fists_only' ? enemy.effect.atk : Math.max(0, baseAtk + itemBonus - (enemy.effect?.type === 'underwater_atk' ? enemy.effect.amount : 0));
     const baseDamage = cannotAttack || blocked ? 0 : Math.max(1, Math.floor(neoRoll / 2) + Math.floor(effectiveAtk / 5) - enemy.armor);
     // Solo se consumen los debuffs cuando Neo efectivamente intenta atacar.
     const slothPenalty = !cannotAttack && (battle.slothAttacks || 0) > 0 ? (enemy.effect?.type === 'opening_sloth' ? enemy.effect.amount : 0) : 0;
@@ -297,12 +316,14 @@
     const owlPenalty = !cannotAttack && battle.owlPenalty ? (enemy.effect?.type === 'owl_foresight' ? enemy.effect.amount : 0) : 0;
     if (!cannotAttack) battle.owlPenalty = false;
     const confusedDamage = confused ? Math.max(1, Math.floor(baseDamage / 2)) : baseDamage;
-    const neoDamage = blocked || cannotAttack ? 0 : Math.max(0, confusedDamage - slothPenalty - owlPenalty);
+    const damageBonus = battle.itemBuff?.kind === 'damage_bonus' ? battle.itemBuff.amount : 0;
+    const neoDamage = blocked || cannotAttack ? 0 : Math.max(0, confusedDamage - slothPenalty - owlPenalty) + damageBonus;
     battle.enemyHp = Math.max(0, battle.enemyHp - neoDamage); battle.round++;
     const penalties = [confused ? 'esporas' : '', slothPenalty ? `pereza −${slothPenalty}` : '', owlPenalty ? `anticipación −${owlPenalty}` : ''].filter(Boolean);
+    const rollText = rollBonus ? `Neo 🎲${baseNeoRoll} (+${rollBonus} → ${neoRoll})` : `Neo 🎲${neoRoll}`;
     const attackText = wasRooted ? 'Neo está atrapado y pierde su ataque (0 daño)'
       : triangleBlocked ? 'Triangulón bloquea el primer ataque de Neo (0 daño)'
-        : `Neo 🎲${neoRoll} → ${blocked ? 'ataque bloqueado (0 daño)' : `${neoDamage} daño${penalties.length ? ` (${penalties.join(', ')})` : ''}`}`;
+        : `${rollText} → ${blocked ? 'ataque bloqueado (0 daño)' : `${neoDamage} daño${penalties.length ? ` (${penalties.join(', ')})` : ''}`}`;
     // Espinas: se activan cuando Rama-miro recibe daño, incluso si el golpe lo derrota.
     const thornDamage = neoDamage > 0 && enemy.effect?.type === 'thorns' && Math.random() < enemy.effect.chance
       ? Math.max(0, Number(enemy.effect.amount) || 0) : 0;

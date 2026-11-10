@@ -35,7 +35,7 @@ const ITEM_CATALOG = [
     "id": "item-06",
     "name": "Masake up!",
     "icon": "assets/items/maaaake-up.png",
-    "card": "assets/cards/maaaake-up.png"
+    "card": "assets/cards/maaake-up.png"
   },
   {
     "id": "item-07",
@@ -47,7 +47,7 @@ const ITEM_CATALOG = [
     "id": "item-08",
     "name": "Pócima de la morisión",
     "icon": "assets/items/pocima-de-la-morision.png",
-    "card": "assets/cards/pocima-de-la-morision.png"
+    "card": "assets/cards/pocion-de-la-morision.png"
   },
   {
     "id": "item-09",
@@ -59,7 +59,7 @@ const ITEM_CATALOG = [
     "id": "item-10",
     "name": "Encendedor de arcoíris",
     "icon": "assets/items/encendedor-de-arcoiris.png",
-    "card": "assets/cards/encendedor-de-arcoiris.png"
+    "card": "assets/cards/encendedor-arcoiris.png"
   },
   {
     "id": "item-11",
@@ -70,7 +70,7 @@ const ITEM_CATALOG = [
   {
     "id": "item-12",
     "name": "Gusanito",
-    "icon": "assets/gusanito.png",
+    "icon": "assets/items/gusanito.png",
     "card": "assets/cards/gusanito.png"
   },
   {
