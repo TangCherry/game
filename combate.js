@@ -3,6 +3,7 @@
   'use strict';
   const HERO_KEY = 'muscules_neo_stats_v01';
   const INVENTORY_KEY = 'muscules_neo_inventory_v01';
+  const CURRENT_ENCOUNTER_KEY = 'muscules_dynamic_current_encounter_v01';
   const read = key => { try { return JSON.parse(localStorage.getItem(key)) } catch { return null } };
   const ITEM_POOL = ['bola', 'llave', 'totem', 'encendedor', 'ojo', 'maaaake', 'fuego', 'gatito', 'stirfry', 'miau', 'morision', 'cumbia', 'galleta', 'sherma', 'gusanito'];
   const ITEMS = {
@@ -43,9 +44,8 @@
   };
   const itemIcon = id => ITEMS[id]?.[1] ? `assets/items/${encodeURIComponent(ITEMS[id][1])}` : 'assets/items/inventory-button.png';
   const itemCard = id => ITEM_CARDS[id] ? `assets/cards/${encodeURIComponent(ITEM_CARDS[id])}` : null;
-  let inventory = read(INVENTORY_KEY);
-  if (!Array.isArray(inventory)) inventory = [];
-  inventory = inventory.filter(id => ITEMS[id]).slice(0, 15);
+  const normalizeInventory = value => Array.isArray(value) ? value.filter(id => ITEMS[id]).slice(0, 15) : [];
+  let inventory = normalizeInventory(read(INVENTORY_KEY));
   let chosenSlot = -1;
   let inventoryView = 'closed';
   const BATTLE_PREFIX = 'muscules_dynamic_battle_v02_';
@@ -60,8 +60,11 @@
   let hero = read(HERO_KEY) || initialHero();
   let selectedId = new URLSearchParams(location.search).get('enemy') || 'carrotnero';
   if (!CATALOG.some(e => e.id === selectedId)) selectedId = 'carrotnero';
+  const currentEncounter = read(CURRENT_ENCOUNTER_KEY);
+  if (CATALOG.some(e => e.id === currentEncounter?.enemyId)) selectedId = currentEncounter.enemyId;
   let enemy, battle, battleKey;
-  function freshBattle() { return { id: `demo-${enemy.id}`, enemyId: enemy.id, startedAt: Date.now(), expiresAt: Date.now() + DURATION, enemyHp: enemy.hp, heroHp: hero.hp, status: hero.hp > 0 ? 'active' : 'lost', reason: hero.hp > 0 ? null : 'hp', round: 0, claimed: false, openingApplied: false, xpStolen: 0, rooted: false, slothAttacks: 0, owlPenalty: false, itemUsed: false, itemBuff: null, lapidaMaxHp: null, lapidaHp: null, poisonTurns: 0, message: `¡${enemy.name} te desafía! Neo ataca primero.` }; }
+  function createEncounterId() { return `${Date.now()}-${Math.random().toString(36).slice(2)}`; }
+  function freshBattle() { return { id: `demo-${enemy.id}`, encounterId: createEncounterId(), enemyId: enemy.id, startedAt: Date.now(), expiresAt: Date.now() + DURATION, enemyHp: enemy.hp, heroHp: hero.hp, status: hero.hp > 0 ? 'active' : 'lost', reason: hero.hp > 0 ? null : 'hp', round: 0, claimed: false, openingApplied: false, xpStolen: 0, rooted: false, slothAttacks: 0, owlPenalty: false, itemUsed: false, itemBuff: null, lapidaMaxHp: null, lapidaHp: null, poisonTurns: 0, message: `¡${enemy.name} te desafía! Neo ataca primero.` }; }
   // La Lápida limita la vida DISPONIBLE, sin borrar la mitad protegida.
   // hero.hp siempre guarda la vida real restante de Neo.
   function isLapida() { return enemy?.effect?.type === 'half_hp'; }
@@ -82,13 +85,42 @@
     if (battle.status !== 'active' && battle.itemBuff?.kind === 'damage_bonus') battle.itemBuff = null;
     save(battleKey, battle); save(HERO_KEY, hero); save(INVENTORY_KEY, inventory);
   }
-  function loadEnemy(id) {
+  function discardPendingReward(pointer) {
+    if (!pointer?.enemyId || !pointer.encounterId) return;
+    const previousKey = BATTLE_PREFIX + pointer.enemyId;
+    const previousBattle = read(previousKey);
+    if (previousBattle?.encounterId !== pointer.encounterId
+      || previousBattle.status !== 'won' || previousBattle.claimed) return;
+    previousBattle.rewardDiscarded = true;
+    previousBattle.rewardMessage = 'Encuentro reemplazado; la recompensa pendiente se perdió.';
+    save(previousKey, previousBattle);
+  }
+  function loadEnemy(id, startNewEncounter = false) {
     const source = CATALOG.find(e => e.id === id); if (!source) return;
     if (source.hp == null || source.atk == null) { alert(`${source.name} tiene una mecánica especial pendiente; no se puede combatir todavía.`); $('enemy-select').value = selectedId; return; }
     selectedId = id; enemy = demoStats(source); battleKey = BATTLE_PREFIX + id;
     closeInventory();
+    const pointer = read(CURRENT_ENCOUNTER_KEY);
+    if (startNewEncounter) discardPendingReward(pointer);
     const storedBattle = read(battleKey);
-    battle = storedBattle || freshBattle();
+    const pointerMatchesEnemy = pointer?.enemyId === id;
+    const battleMatchesPointer = pointerMatchesEnemy && storedBattle?.encounterId
+      && storedBattle.encounterId === pointer.encounterId;
+    const canAdoptLegacyBattle = storedBattle && !storedBattle.encounterId
+      && (!pointer || pointerMatchesEnemy);
+    if (startNewEncounter || (!battleMatchesPointer && !canAdoptLegacyBattle)) {
+      battle = freshBattle();
+    } else {
+      battle = storedBattle || freshBattle();
+      if (!battle.encounterId) battle.encounterId = createEncounterId();
+    }
+    if (!pointerMatchesEnemy || pointer?.encounterId !== battle.encounterId) {
+      save(battleKey, battle);
+      save(CURRENT_ENCOUNTER_KEY, { enemyId: id, encounterId: battle.encounterId });
+    } else if (storedBattle && !storedBattle.encounterId) {
+      save(battleKey, battle);
+      save(CURRENT_ENCOUNTER_KEY, { enemyId: id, encounterId: battle.encounterId });
+    }
     // Compatibilidad con encuentros creados antes de introducir openingApplied:
     // si ya hubo rondas, nunca volver a aplicar un efecto inicial.
     if (storedBattle && battle.openingApplied === undefined && battle.round > 0) {
@@ -142,12 +174,24 @@
     $('win-image').src = enemy.image; $('lose-image').src = enemy.image;
     $('enemy-atk').textContent = enemy.atk;
     $('enemy-ability').textContent = enemy.ability;
-    $('reward-xp').textContent = enemy.reward?.type === 'extra_life' ? '❤️ Vida extra' : enemy.reward?.description || `${enemy.xp ?? 0} XP`;
+    $('reward-xp').textContent = enemy.reward?.type === 'extra_life'
+      ? '❤️ Vida extra'
+      : enemy.reward?.type === 'item' ? ITEMS.cumbia[0] : enemy.reward?.description || `${enemy.xp ?? 0} XP`;
     $('demo-note').textContent = source.hp === null ? '⚠️ Estadísticas provisionales: revisa enemies.js' : 'Modo local: sin sincronización';
     history.replaceState(null, '', `?enemy=${encodeURIComponent(id)}`);
     persist(); render();
   }
   function expire() { if (battle.status === 'active' && Date.now() >= battle.expiresAt) { battle.status = 'lost'; battle.reason = 'time'; battle.message = `¡Se acabaron las 24 horas! ${enemy.name} escapó.`; persist() } }
+  function rewardItemId(reward) {
+    if (reward?.type === 'extra_life') return 'vida_extra';
+    if (reward?.type === 'item') return 'cumbia';
+    if (reward?.type === 'random_item') return ITEM_POOL[Math.floor(Math.random() * ITEM_POOL.length)];
+    return null;
+  }
+  function rewardNeedsInventorySpace() {
+    return battle.status === 'won' && !battle.claimed
+      && ['extra_life', 'item', 'random_item'].includes(enemy.reward?.type);
+  }
   function render() {
     if (!battle) return; expire();
     const remaining = Math.max(0, battle.expiresAt - Date.now());
@@ -163,8 +207,11 @@
       : `${hero.hp}/${hero.maxHp} HP`;
     $('hero-bar').style.width = `${100 * clamp(visibleHp / Math.max(1, visibleMaxHp), 0, 1)}%`;
     $('log').textContent = battle.message; $('roll').disabled = battle.status !== 'active' || hero.hp <= 0;
-    $('claim').disabled = battle.claimed; $('claim').textContent = battle.claimed ? 'Reclamado ✓' : 'Reclamar';
-    $('claim-status').textContent = battle.claimed ? (battle.rewardMessage || `XP total: ${hero.xp}`) : '';
+    const inventoryFull = rewardNeedsInventorySpace() && inventory.length >= 15;
+    $('claim').disabled = battle.claimed || battle.rewardDiscarded || inventoryFull; $('claim').textContent = battle.claimed ? 'Reclamado ✓' : 'Reclamar';
+    $('claim-status').textContent = battle.claimed
+      ? (battle.rewardMessage || `XP total: ${hero.xp}`)
+      : inventoryFull ? 'Inventario lleno: libera un espacio para reclamar esta recompensa.' : (battle.rewardMessage || '');
     $('revive-button').hidden = !(battle.status === 'lost' && battle.reason === 'hp' && inventory.some(id => isRevive(id)));
     renderInventoryButton();
     $('lose').querySelector('h1').textContent = battle.reason === 'escape' ? 'Huida' : 'Derrota';
@@ -226,8 +273,10 @@
     $('inventory-hint').textContent = canUse(id) ? '' : (ITEMS[id][3] === 'special' ? 'Efecto pendiente de definir' : 'No se puede utilizar en este momento');
   }
   function restartWithLife(amount) {
+    const encounterId = battle.encounterId;
     hero.hp = Math.min(hero.maxHp, amount);
     battle = freshBattle();
+    battle.encounterId = encounterId;
     battle.message = `❤️ ¡Neo ha revivido con ${hero.hp} HP! ${enemy.name} vuelve con toda su vida.`;
     // El efecto de apertura se procesa al recargar este encuentro.
     persist(); loadEnemy(selectedId);
@@ -393,20 +442,61 @@
     persist(); render();
   });
   $('claim').addEventListener('click', () => {
+    const pointer = read(CURRENT_ENCOUNTER_KEY);
+    if (pointer?.enemyId !== enemy.id || pointer?.encounterId !== battle.encounterId) {
+      if (CATALOG.some(e => e.id === pointer?.enemyId)) loadEnemy(pointer.enemyId);
+      else render();
+      return;
+    }
+    if (battle.rewardDiscarded) { render(); return; }
+    const latestBattle = read(battleKey);
+    if (!latestBattle || latestBattle.encounterId !== battle.encounterId || latestBattle.claimed || latestBattle.rewardDiscarded) {
+      loadEnemy(pointer.enemyId);
+      return;
+    }
     expire(); if (battle.status !== 'won' || battle.claimed) { render(); return; }
     const reward = enemy.reward;
     if (!reward || reward.type === 'xp') { hero.xp += enemy.xp || 0; battle.rewardMessage = `XP total: ${hero.xp}`; }
     else {
-      const id = reward.type === 'extra_life' ? 'vida_extra' : reward.type === 'item' ? 'cumbia' : reward.type === 'random_item' ? ITEM_POOL[Math.floor(Math.random() * ITEM_POOL.length)] : null;
+      inventory = normalizeInventory(read(INVENTORY_KEY));
+      if (inventory.length >= 15 && rewardNeedsInventorySpace()) { render(); return; }
+      const id = rewardItemId(reward);
       if (!id) { alert('Esta recompensa especial todavía no está implementada.'); return; }
-      battle.rewardMessage = inventory.length >= 15 ? `🎒 Inventario lleno: ${ITEMS[id][0]} se descartó.` : `🎒 Obtuviste: ${ITEMS[id][0]}`;
-      if (inventory.length < 15) inventory.push(id);
+      const updatedInventory = [...inventory, id];
+      try {
+        save(INVENTORY_KEY, updatedInventory);
+      } catch (error) {
+        console.error('No se pudo guardar la recompensa en el inventario local.', error);
+        battle.rewardMessage = 'No se pudo guardar la recompensa. Inténtalo de nuevo.';
+        render();
+        return;
+      }
+      inventory = updatedInventory;
+      battle.rewardMessage = `🎒 Obtuviste: ${ITEMS[id][0]}`;
     }
     battle.claimed = true; persist(); render();
   });
-  $('reset').addEventListener('click', () => { if (!confirm(`¿Reiniciar este encuentro de prueba? Restaurará HP a ${hero.maxHp} y no restará XP ya reclamado.`)) return; hero.hp = hero.maxHp; battle = freshBattle(); persist(); loadEnemy(selectedId) });
-  $('enemy-select').addEventListener('change', e => loadEnemy(e.target.value));
+  $('reset').addEventListener('click', () => { if (!confirm(`¿Reiniciar este encuentro de prueba? Restaurará HP a ${hero.maxHp} y no restará XP ya reclamado.`)) return; hero.hp = hero.maxHp; loadEnemy(selectedId, true) });
+  $('enemy-select').addEventListener('change', e => loadEnemy(e.target.value, true));
+  window.addEventListener('storage', event => {
+    if (event.key === INVENTORY_KEY || event.key === null) {
+      inventory = normalizeInventory(read(INVENTORY_KEY));
+      if (inventoryView !== 'closed') showGrid();
+      render();
+    }
+    if (event.key === CURRENT_ENCOUNTER_KEY || event.key === null) {
+      const pointer = read(CURRENT_ENCOUNTER_KEY);
+      if (event.key === CURRENT_ENCOUNTER_KEY && event.oldValue) {
+        try { discardPendingReward(JSON.parse(event.oldValue)); }
+        catch (error) { console.error('No se pudo descartar la recompensa del encuentro anterior.', error); }
+      }
+      if (CATALOG.some(e => e.id === pointer?.enemyId)
+        && (pointer.enemyId !== enemy.id || pointer.encounterId !== battle.encounterId)) {
+        loadEnemy(pointer.enemyId);
+      }
+    }
+  });
   for (const e of CATALOG) { const opt = document.createElement('option'); opt.value = e.id; opt.textContent = `Nivel ${e.level} · ${e.name}`; $('enemy-select').append(opt) }
-  window.MusculesDemo = { inventory: () => [...inventory], grantItem: id => { if (!ITEMS[id] || inventory.length >= 15) return false; inventory.push(id); persist(); render(); return true; }, state: () => structuredClone({ hero, battle, enemy, inventory }), reset: () => $('reset').click(), expire: () => { battle.expiresAt = Date.now() - 1; persist(); render() }, win: () => { if (battle.status !== 'active') return; battle.enemyHp = 0; battle.status = 'won'; battle.message = 'Victoria forzada para probar la pantalla'; persist(); render() }, select: loadEnemy };
+  window.MusculesDemo = { inventory: () => [...inventory], grantItem: id => { if (!ITEMS[id] || inventory.length >= 15) return false; inventory.push(id); persist(); render(); return true; }, state: () => structuredClone({ hero, battle, enemy, inventory }), reset: () => $('reset').click(), expire: () => { battle.expiresAt = Date.now() - 1; persist(); render() }, win: () => { if (battle.status !== 'active') return; battle.enemyHp = 0; battle.status = 'won'; battle.message = 'Victoria forzada para probar la pantalla'; persist(); render() }, select: id => loadEnemy(id, true) };
   loadEnemy(selectedId); setInterval(render, 1000);
 })();

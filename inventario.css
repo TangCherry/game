@@ -192,20 +192,15 @@ body {
 }
 
 .slot img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain
-}
-
-.qty {
     position: absolute;
-    right: 1px;
-    bottom: 0;
-    color: white;
-    background: #553824;
-    border-radius: 3px;
-    padding: 0 3px;
-    font: 11px Arial, sans-serif
+    top: 50%;
+    left: 50%;
+    width: calc(100% - 12px);
+    height: calc(100% - 12px);
+    transform: translate(-50%, -50%);
+    object-fit: contain;
+    object-position: center;
+    z-index: 0
 }
 
 .hint {
@@ -214,8 +209,9 @@ body {
     left: 0;
     right: 0;
     text-align: center;
-    color: #6c4530;
-    font: 12px Arial, sans-serif
+    color: #fff;
+    font: 12px Arial, sans-serif;
+    text-shadow: 0 1px 3px #000
 }
 
 dialog {
@@ -252,11 +248,6 @@ dialog::backdrop {
     object-fit: contain
 }
 
-.dialog-inner p {
-    margin: 0;
-    font: 14px Arial, sans-serif
-}
-
 .close {
     position: absolute;
     right: 8px;
@@ -269,6 +260,42 @@ dialog::backdrop {
     cursor: pointer;
     width: 32px;
     height: 32px
+}
+
+.delete-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-width: 108px;
+    padding: 8px 14px;
+    border: 1px solid #54211d;
+    border-radius: 7px;
+    background: linear-gradient(#a83d32, #7d241f);
+    box-shadow: inset 0 1px 0 #ffffff45, 0 2px 3px #0004;
+    color: #fff8e9;
+    font: bold 14px Arial, sans-serif;
+    text-shadow: 0 1px 1px #421813;
+    cursor: pointer
+}
+
+.delete-item:hover,
+.delete-item:focus-visible {
+    background: linear-gradient(#bd4c3f, #8b2b24);
+    outline: 2px solid #f1d2a4;
+    outline-offset: 2px
+}
+
+.delete-item:disabled {
+    opacity: .55;
+    cursor: not-allowed
+}
+
+.delete-item img {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    filter: brightness(0) invert(1)
 }
 
 @media(max-width:393px) {

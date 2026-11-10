@@ -305,6 +305,13 @@ a {
     min-width: 145px
 }
 
+.claim:disabled {
+    background: #666;
+    color: #fff;
+    opacity: 1;
+    cursor: not-allowed
+}
+
 .result-status {
     font-size: 13px
 }
