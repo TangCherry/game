@@ -7,7 +7,13 @@ const closeButton = dialog.querySelector('.close');
 const itemTitle = document.getElementById('item-title');
 const itemCard = document.getElementById('item-card');
 const deleteButton = document.getElementById('item-delete');
+const dialogInner = dialog.querySelector('.dialog-inner');
+const deleteConfirm = document.getElementById('delete-confirm-overlay');
+const confirmDeleteButton = document.getElementById('delete-confirm-yes');
+const cancelDeleteButton = document.getElementById('delete-confirm-no');
+const confirmError = document.getElementById('delete-confirm-error');
 let selectedItemId = null;
+let deleteInProgress = false;
 
 function readInventory() {
   let stored;
@@ -72,10 +78,27 @@ function renderInventory(inventory) {
 renderInventory(readInventory());
 closeButton.addEventListener('click', () => dialog.close());
 deleteButton.addEventListener('click', () => {
-  if (!selectedItemId) return;
+  if (!selectedItemId || deleteInProgress || !deleteConfirm.hidden) return;
+  confirmError.hidden = true;
+  confirmError.textContent = '';
+  dialogInner.inert = true;
+  deleteConfirm.hidden = false;
+  cancelDeleteButton.focus();
+});
+function closeDeleteConfirmation() {
+  if (deleteInProgress) return;
+  deleteConfirm.hidden = true;
+  dialogInner.inert = false;
+  if (dialog.open) deleteButton.focus();
+}
 
-  const selectedItem = ITEM_BY_ID.get(selectedItemId);
-  if (!selectedItem || !window.confirm(`¿Borrar una unidad de ${selectedItem.name}?`)) return;
+cancelDeleteButton.addEventListener('click', closeDeleteConfirmation);
+confirmDeleteButton.addEventListener('click', () => {
+  if (!selectedItemId || deleteInProgress || deleteConfirm.hidden) return;
+
+  deleteInProgress = true;
+  confirmDeleteButton.disabled = true;
+  cancelDeleteButton.disabled = true;
 
   let inventory;
   try {
@@ -84,16 +107,23 @@ deleteButton.addEventListener('click', () => {
     if (!Array.isArray(inventory)) throw new TypeError('El inventario local no es una lista.');
   } catch (error) {
     console.error('No se pudo leer el inventario para borrar el objeto.', error);
-    window.alert('No se pudo leer el inventario. Inténtalo de nuevo.');
+    confirmError.textContent = 'No se pudo leer el inventario. Inténtalo de nuevo.';
+    confirmError.hidden = false;
+    deleteInProgress = false;
+    confirmDeleteButton.disabled = false;
+    cancelDeleteButton.disabled = false;
     return;
   }
 
   const itemIndex = inventory.indexOf(selectedItemId);
   if (itemIndex === -1) {
-    window.alert('Este objeto ya no está en el inventario.');
     const currentInventory = readInventory();
     renderInventory(currentInventory);
     updateDeleteButton(currentInventory);
+    deleteInProgress = false;
+    confirmDeleteButton.disabled = false;
+    cancelDeleteButton.disabled = false;
+    closeDeleteConfirmation();
     return;
   }
 
@@ -102,14 +132,32 @@ deleteButton.addEventListener('click', () => {
     localStorage.setItem(INVENTORY_KEY, JSON.stringify(inventory));
   } catch (error) {
     console.error('No se pudo guardar el inventario después de borrar el objeto.', error);
-    window.alert('No se pudo borrar el objeto. Inténtalo de nuevo.');
+    confirmError.textContent = 'No se pudo borrar el objeto. Inténtalo de nuevo.';
+    confirmError.hidden = false;
+    deleteInProgress = false;
+    confirmDeleteButton.disabled = false;
+    cancelDeleteButton.disabled = false;
     return;
   }
 
   renderInventory(inventory.filter(id => ITEM_BY_ID.has(id)).slice(0, 15));
+  deleteInProgress = false;
   dialog.close();
 });
-dialog.addEventListener('close', () => { selectedItemId = null; });
+dialog.addEventListener('cancel', event => {
+  if (!deleteConfirm.hidden) {
+    event.preventDefault();
+    closeDeleteConfirmation();
+  }
+});
+dialog.addEventListener('close', () => {
+  deleteConfirm.hidden = true;
+  dialogInner.inert = false;
+  deleteInProgress = false;
+  confirmDeleteButton.disabled = false;
+  cancelDeleteButton.disabled = false;
+  selectedItemId = null;
+});
 dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
 window.addEventListener('storage', event => {
   if (event.key !== INVENTORY_KEY && event.key !== null) return;

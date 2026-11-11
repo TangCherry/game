@@ -13,10 +13,20 @@
     <img class="corner tl" src="assets/combate/chispa.png" alt=""><img class="corner tr" src="assets/combate/chispa.png"
       alt=""><img class="corner bl" src="assets/combate/chispa.png" alt=""><img class="corner br"
       src="assets/combate/chispa.png" alt="">
+    <section id="waiting" class="scene scene--waiting" hidden>
+      <a class="back" href="index.html">← Atrás</a>
+      <div class="waiting-content">
+        <h1>Por el momento no hay encuentro flaquito chulo</h1>
+        <img class="waiting-cherry" src="assets/cherry.png" alt="Cherry, la Dungeon Master">
+      </div>
+      <div id="waiting-picker-container"></div>
+    </section>
     <section id="battle" class="scene scene--battle">
       <header>
-        <div class="dev-picker"><label for="enemy-select">🧪 Enemigo de prueba</label><select
-            id="enemy-select"></select><small id="demo-note">Modo local: no es un encuentro real de Cherry</small></div>
+        <div id="battle-picker-container">
+          <div class="dev-picker"><label for="enemy-select">🧪 Enemigo de prueba</label><select
+              id="enemy-select"></select><small id="demo-note">Modo local: no es un encuentro real de Cherry</small></div>
+        </div>
         <a class="back" href="index.html">← Atrás</a>
         <div class="timer"><span>Tiempo restante:</span><strong id="timer" aria-live="off">24:00:00</strong></div>
       </header>
@@ -53,7 +63,9 @@
         <p>Recompensa</p>
         <p id="reward-xp">30 XP</p><button id="claim" class="claim" type="button">Reclamar</button>
         <p class="result-status" id="claim-status"></p>
-      </div><a href="index.html" class="result-exit">Salir</a>
+      </div>
+      <div id="win-picker-container"></div>
+      <a href="index.html" class="result-exit">Salir</a>
     </section>
     <section id="lose" class="scene scene--result lose" hidden>
       <h1>Derrota</h1><img class="result-monster" id="lose-image" src="assets/combate/carrotnero.png" alt="Enemigo">
@@ -62,6 +74,7 @@
         <p id="lose-detail">Sin penalización de XP</p><button id="revive-button" class="action" hidden>❤️ Usar
           resurrección</button><a class="result-exit" href="index.html">Salir</a>
       </div>
+      <div id="lose-picker-container"></div>
     </section>
     <div id="inventory-overlay" class="inventory-overlay" hidden>
       <div id="inventory-grid-view" class="inventory-grid-view" role="dialog" aria-label="Inventario">

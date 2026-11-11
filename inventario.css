@@ -298,6 +298,74 @@ dialog::backdrop {
     filter: brightness(0) invert(1)
 }
 
+.delete-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    background: transparent
+}
+
+.delete-confirm-overlay[hidden] {
+    display: none !important
+}
+
+.delete-confirm {
+    width: min(84vw, 300px);
+    padding: 22px 18px 18px;
+    border: 2px solid #a4774d;
+    border-radius: 12px;
+    background: #39251c;
+    box-shadow: 0 12px 35px #0009;
+    color: #fff3df;
+    text-align: center
+}
+
+.delete-confirm p {
+    margin: 0 0 22px;
+    font: 17px/1.35 Georgia, serif
+}
+
+.delete-confirm .delete-confirm-error {
+    margin: -12px 0 14px;
+    color: #ffd2c9;
+    font: 12px/1.35 Arial, sans-serif
+}
+
+.delete-confirm-error[hidden] {
+    display: none
+}
+
+.delete-confirm-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px
+}
+
+.delete-confirm-actions button {
+    min-width: 100px;
+    padding: 9px 14px;
+    border: 1px solid #241811;
+    border-radius: 7px;
+    color: white;
+    font: 15px Georgia, serif;
+    cursor: pointer
+}
+
+.delete-confirm-yes {
+    background: linear-gradient(#a83d32, #7d241f)
+}
+
+.delete-confirm-no {
+    background: linear-gradient(#777, #555)
+}
+
+.delete-confirm-actions button:focus-visible {
+    outline: 2px solid #f1d2a4;
+    outline-offset: 2px
+}
+
 @media(max-width:393px) {
     .inventory-screen {
         height: 100dvh;

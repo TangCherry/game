@@ -164,6 +164,15 @@ body {
     margin-bottom: 5px
 }
 
+.stat-row--atk {
+    grid-template-columns: 72px 1fr
+}
+
+.stat-row--atk #atk-value {
+    line-height: 1;
+    transform: translateY(-3px)
+}
+
 .stat-label {
     line-height: 1
 }

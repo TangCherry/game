@@ -33,6 +33,16 @@
                 <span>Borrar</span>
             </button>
         </div>
+        <div id="delete-confirm-overlay" class="delete-confirm-overlay" hidden>
+            <section class="delete-confirm" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title">
+                <p id="delete-confirm-title">¿Seguro que quieres borrar este item?</p>
+                <p id="delete-confirm-error" class="delete-confirm-error" aria-live="polite" hidden></p>
+                <div class="delete-confirm-actions">
+                    <button id="delete-confirm-yes" class="delete-confirm-yes" type="button">Borrar</button>
+                    <button id="delete-confirm-no" class="delete-confirm-no" type="button">Cerrar</button>
+                </div>
+            </section>
+        </div>
     </dialog>
     <script src="inventory-data.js"></script>
     <script src="inventario.js"></script>

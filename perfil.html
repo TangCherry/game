@@ -23,11 +23,13 @@
         <img class="equip boots" src="assets/botas.png" alt="Botas" title="Botas" />
       </section>
       <section class="stats" aria-label="Estadísticas de Neo">
-        <div class="stat-row"><span class="stat-label">HP</span><div class="meter hp" role="progressbar" aria-label="Puntos de vida" aria-valuemin="0" aria-valuemax="28" aria-valuenow="28"><div class="meter-fill" style="width:100%"></div><span class="meter-value">28/28</span></div></div>
-        <div class="stat-row"><span class="stat-label">EXP</span><div class="meter exp" role="progressbar" aria-label="Experiencia" aria-valuemin="0" aria-valuemax="10000" aria-valuenow="9400"><div class="meter-fill" style="width:94%"></div><span class="meter-value">9,400/10,000</span></div></div>
-        <dl class="details"><div><dt>Arma:</dt><dd>Gancho</dd></div><div><dt>Signo:</dt><dd>Sagitario</dd></div><div><dt>Nivel:</dt><dd>Neogon</dd></div></dl>
+        <div class="stat-row"><span class="stat-label">HP</span><div class="meter hp" id="hp-meter" role="progressbar" aria-label="Puntos de vida" aria-valuemin="0" aria-valuemax="28" aria-valuenow="28"><div class="meter-fill" id="hp-fill" style="width:100%"></div><span class="meter-value" id="hp-value">28/28</span></div></div>
+        <div class="stat-row"><span class="stat-label">EXP</span><div class="meter exp" id="xp-meter" role="progressbar" aria-label="Progreso de experiencia del nivel actual" aria-valuemin="0" aria-valuemax="1000" aria-valuenow="400"><div class="meter-fill" id="xp-fill" style="width:40%"></div><span class="meter-value" id="xp-value">9,400 XP</span></div></div>
+        <div class="stat-row stat-row--atk"><span class="stat-label">ATK</span><span id="atk-value"></span></div>
+        <dl class="details"><div><dt>Arma:</dt><dd>Gancho</dd></div><div><dt>Signo:</dt><dd>Sagitario</dd></div><div><dt>Nivel:</dt><dd><span id="level-number">9</span> · Neogon</dd></div></dl>
       </section>
     </div>
   </main>
+  <script src="perfil.js"></script>
 </body>
 </html>

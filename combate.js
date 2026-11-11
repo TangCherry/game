@@ -58,8 +58,7 @@
   const demoStats = enemy => ({ ...enemy, hp: enemy.hp ?? 45, atk: enemy.atk ?? 8, xp: enemy.xp ?? 0 });
   const initialHero = () => ({ hp: 28, maxHp: 28, atk: 35, xp: 9400 });
   let hero = read(HERO_KEY) || initialHero();
-  let selectedId = new URLSearchParams(location.search).get('enemy') || 'carrotnero';
-  if (!CATALOG.some(e => e.id === selectedId)) selectedId = 'carrotnero';
+  let selectedId = 'carrotnero';
   const currentEncounter = read(CURRENT_ENCOUNTER_KEY);
   if (CATALOG.some(e => e.id === currentEncounter?.enemyId)) selectedId = currentEncounter.enemyId;
   let enemy, battle, battleKey;
@@ -193,7 +192,13 @@
       && ['extra_life', 'item', 'random_item'].includes(enemy.reward?.type);
   }
   function render() {
-    if (!battle) return; expire();
+    if (!battle) return;
+    $('waiting').hidden = true;
+    expire();
+    const pickerContainer = battle.status === 'active' ? $('battle-picker-container')
+      : battle.status === 'won' ? $('win-picker-container') : $('lose-picker-container');
+    const picker = document.querySelector('.dev-picker');
+    if (picker.parentElement !== pickerContainer) pickerContainer.append(picker);
     const remaining = Math.max(0, battle.expiresAt - Date.now());
     const hh = Math.floor(remaining / 3600000), mm = Math.floor(remaining % 3600000 / 60000), ss = Math.floor(remaining % 60000 / 1000);
     $('timer').textContent = [hh, mm, ss].map(x => String(x).padStart(2, '0')).join(':');
@@ -242,6 +247,23 @@
     if ($('inventory-overlay')) $('inventory-overlay').hidden = true;
     if ($('inventory-detail')) $('inventory-detail').hidden = true;
     if ($('inventory-grid-view')) $('inventory-grid-view').hidden = false;
+  }
+  function showNoEncounter() {
+    closeInventory();
+    enemy = null; battle = null; battleKey = null;
+    $('battle').hidden = true;
+    $('win').hidden = true;
+    $('lose').hidden = true;
+    $('waiting').hidden = false;
+    const picker = document.querySelector('.dev-picker');
+    if (picker.parentElement !== $('waiting-picker-container')) $('waiting-picker-container').append(picker);
+    $('enemy-select').value = '';
+    history.replaceState(null, '', location.pathname);
+  }
+  function deactivateEncounter() {
+    discardPendingReward(read(CURRENT_ENCOUNTER_KEY));
+    localStorage.removeItem(CURRENT_ENCOUNTER_KEY);
+    showNoEncounter();
   }
   function showGrid() {
     inventoryView = 'grid'; chosenSlot = -1;
@@ -442,6 +464,7 @@
     persist(); render();
   });
   $('claim').addEventListener('click', () => {
+    if (!battle || !enemy) { showNoEncounter(); return; }
     const pointer = read(CURRENT_ENCOUNTER_KEY);
     if (pointer?.enemyId !== enemy.id || pointer?.encounterId !== battle.encounterId) {
       if (CATALOG.some(e => e.id === pointer?.enemyId)) loadEnemy(pointer.enemyId);
@@ -477,26 +500,67 @@
     battle.claimed = true; persist(); render();
   });
   $('reset').addEventListener('click', () => { if (!confirm(`¿Reiniciar este encuentro de prueba? Restaurará HP a ${hero.maxHp} y no restará XP ya reclamado.`)) return; hero.hp = hero.maxHp; loadEnemy(selectedId, true) });
-  $('enemy-select').addEventListener('change', e => loadEnemy(e.target.value, true));
+  $('enemy-select').addEventListener('change', e => {
+    if (e.target.value === '') deactivateEncounter();
+    else loadEnemy(e.target.value, true);
+  });
   window.addEventListener('storage', event => {
-    if (event.key === INVENTORY_KEY || event.key === null) {
+    if (event.key === INVENTORY_KEY) {
       inventory = normalizeInventory(read(INVENTORY_KEY));
       if (inventoryView !== 'closed') showGrid();
       render();
     }
-    if (event.key === CURRENT_ENCOUNTER_KEY || event.key === null) {
+    if (event.key === CURRENT_ENCOUNTER_KEY) {
       const pointer = read(CURRENT_ENCOUNTER_KEY);
-      if (event.key === CURRENT_ENCOUNTER_KEY && event.oldValue) {
-        try { discardPendingReward(JSON.parse(event.oldValue)); }
-        catch (error) { console.error('No se pudo descartar la recompensa del encuentro anterior.', error); }
+      let previousPointer = null;
+      if (event.oldValue) {
+        try { previousPointer = JSON.parse(event.oldValue); }
+        catch (error) { console.error('No se pudo interpretar el encuentro anterior.', error); }
       }
-      if (CATALOG.some(e => e.id === pointer?.enemyId)
-        && (pointer.enemyId !== enemy.id || pointer.encounterId !== battle.encounterId)) {
-        loadEnemy(pointer.enemyId);
+      if (CATALOG.some(e => e.id === pointer?.enemyId) && pointer.encounterId) {
+        if (previousPointer && (previousPointer.enemyId !== pointer.enemyId
+          || previousPointer.encounterId !== pointer.encounterId)) discardPendingReward(previousPointer);
+        if (!battle || pointer.enemyId !== enemy?.id || pointer.encounterId !== battle.encounterId) {
+          loadEnemy(pointer.enemyId);
+        }
+      } else {
+        const previousBattle = previousPointer?.enemyId
+          ? read(BATTLE_PREFIX + previousPointer.enemyId) : null;
+        if (previousBattle?.encounterId === previousPointer?.encounterId
+          && previousBattle.status === 'won' && !previousBattle.claimed && !previousBattle.rewardDiscarded) {
+          save(CURRENT_ENCOUNTER_KEY, previousPointer);
+          loadEnemy(previousPointer.enemyId);
+        } else {
+          showNoEncounter();
+        }
       }
     }
   });
+  const encounterPlaceholder = document.createElement('option');
+  encounterPlaceholder.value = '';
+  encounterPlaceholder.textContent = 'Sin encuentro';
+  $('enemy-select').append(encounterPlaceholder);
   for (const e of CATALOG) { const opt = document.createElement('option'); opt.value = e.id; opt.textContent = `Nivel ${e.level} · ${e.name}`; $('enemy-select').append(opt) }
-  window.MusculesDemo = { inventory: () => [...inventory], grantItem: id => { if (!ITEMS[id] || inventory.length >= 15) return false; inventory.push(id); persist(); render(); return true; }, state: () => structuredClone({ hero, battle, enemy, inventory }), reset: () => $('reset').click(), expire: () => { battle.expiresAt = Date.now() - 1; persist(); render() }, win: () => { if (battle.status !== 'active') return; battle.enemyHp = 0; battle.status = 'won'; battle.message = 'Victoria forzada para probar la pantalla'; persist(); render() }, select: id => loadEnemy(id, true) };
-  loadEnemy(selectedId); setInterval(render, 1000);
+  window.MusculesDemo = {
+    inventory: () => [...inventory],
+    grantItem: id => {
+      if (!ITEMS[id] || inventory.length >= 15) return false;
+      inventory.push(id);
+      save(INVENTORY_KEY, inventory);
+      if (battle) persist();
+      render();
+      return true;
+    },
+    state: () => structuredClone({ hero, battle, enemy, inventory }),
+    reset: () => { if (battle) $('reset').click(); },
+    expire: () => { if (battle) { battle.expiresAt = Date.now() - 1; persist(); render(); } },
+    win: () => { if (!battle || battle.status !== 'active') return; battle.enemyHp = 0; battle.status = 'won'; battle.message = 'Victoria forzada para probar la pantalla'; persist(); render(); },
+    select: id => loadEnemy(id, true)
+  };
+  if (CATALOG.some(e => e.id === currentEncounter?.enemyId) && currentEncounter.encounterId) {
+    loadEnemy(currentEncounter.enemyId);
+  } else {
+    showNoEncounter();
+  }
+  setInterval(render, 1000);
 })();
