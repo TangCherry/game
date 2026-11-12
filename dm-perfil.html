@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#42303a">
+  <title>Muscules | Perfil de Neo · DM</title>
+  <link rel="stylesheet" href="dm.css">
+</head>
+<body>
+  <main class="dm-screen dm-screen--interior" aria-label="Administrar perfil de Neo">
+    <img class="dm-star dm-star--tl" src="assets/sparkle.png" alt="">
+    <img class="dm-star dm-star--tr" src="assets/sparkle.png" alt="">
+    <img class="dm-star dm-star--bl" src="assets/sparkle.png" alt="">
+    <img class="dm-star dm-star--br" src="assets/sparkle.png" alt="">
+    <div class="dm-frame"></div>
+    <a class="dm-back" href="dm.html">← Atrás</a>
+    <section class="dm-content dm-content--profile">
+      <header class="dm-profile-heading">
+        <h1>Neo</h1>
+        <img class="dm-profile-avatar" src="assets/neo icono.png" alt="Neo">
+      </header>
+      <button class="dm-profile-edit" type="button" aria-label="Editar perfil de Neo" title="Editar perfil">
+        <img src="assets/lapiz.png" alt="">
+      </button>
+      <p id="dm-profile-status" class="dm-profile-status" role="status" aria-live="polite"></p>
+      <div class="dm-profile-panel">
+        <div class="dm-profile-stat">
+          <span>HP</span>
+          <div class="dm-profile-meter">
+            <span class="dm-meter-fill dm-meter-fill--hp"></span>
+            <span id="dm-hp-value" class="dm-meter-value"></span>
+          </div>
+          <div class="dm-profile-edit-inputs" hidden>
+            <label for="dm-hp">Actual</label><input id="dm-hp" type="number" min="0" step="1" inputmode="numeric">
+            <label for="dm-max-hp">Máximo</label><input id="dm-max-hp" type="number" min="1" step="1" inputmode="numeric">
+          </div>
+        </div>
+        <div class="dm-profile-stat">
+          <span>EXP</span>
+          <div class="dm-profile-meter">
+            <span class="dm-meter-fill dm-meter-fill--xp"></span>
+            <span id="dm-xp-value" class="dm-meter-value"></span>
+          </div>
+          <div class="dm-profile-edit-inputs" hidden>
+            <label for="dm-xp">Total</label><input id="dm-xp" type="number" min="0" step="1" inputmode="numeric">
+          </div>
+        </div>
+        <div class="dm-profile-atk">
+          <span>ATK:</span><span id="dm-atk-value"></span>
+          <label class="dm-profile-edit-input" for="dm-atk" hidden>Editar ATK</label>
+          <input id="dm-atk" class="dm-profile-edit-input" type="number" min="0" step="1" inputmode="numeric" hidden>
+        </div>
+        <div class="dm-profile-field"><span>Arma:</span><span id="dm-weapon-value">Gancho</span><input id="dm-weapon" type="text" maxlength="60" hidden></div>
+        <div class="dm-profile-field"><span>Signo:</span><span id="dm-sign-value">Sagitario</span><input id="dm-sign" type="text" maxlength="60" hidden></div>
+        <div class="dm-profile-field"><span>Nivel:</span><span id="dm-level-name-value">Neogon</span><input id="dm-level-name" type="text" maxlength="60" hidden></div>
+        <button id="dm-profile-save" class="dm-profile-save" type="button" disabled>Guardar</button>
+      </div>
+    </section>
+  </main>
+  <script src="neo-stats-lock.js"></script>
+  <script src="dm-perfil.js"></script>
+</body>
+</html>

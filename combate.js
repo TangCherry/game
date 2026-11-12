@@ -1,7 +1,8 @@
 /* Muscules v0.7: bestiario dinámico, demo local. No sincroniza con Supabase. */
 (() => {
   'use strict';
-  const HERO_KEY = 'muscules_neo_stats_v01';
+  const statsStore = window.MusculesNeoStats;
+  const HERO_KEY = statsStore.key;
   const INVENTORY_KEY = 'muscules_neo_inventory_v01';
   const CURRENT_ENCOUNTER_KEY = 'muscules_dynamic_current_encounter_v01';
   const read = key => { try { return JSON.parse(localStorage.getItem(key)) } catch { return null } };
@@ -45,25 +46,82 @@
   const itemIcon = id => ITEMS[id]?.[1] ? `assets/items/${encodeURIComponent(ITEMS[id][1])}` : 'assets/items/inventory-button.png';
   const itemCard = id => ITEM_CARDS[id] ? `assets/cards/${encodeURIComponent(ITEM_CARDS[id])}` : null;
   const normalizeInventory = value => Array.isArray(value) ? value.filter(id => ITEMS[id]).slice(0, 15) : [];
+  function readInventoryForUpdate() {
+    let raw;
+    try {
+      raw = localStorage.getItem(INVENTORY_KEY);
+    } catch (error) {
+      throw new Error('No se pudo leer el inventario compartido de Neo.', { cause: error });
+    }
+    if (raw === null) return [];
+    let stored;
+    try {
+      stored = JSON.parse(raw);
+    } catch (error) {
+      throw new Error('El inventario compartido de Neo tiene JSON inválido.', { cause: error });
+    }
+    if (!Array.isArray(stored) || stored.length > 15 || stored.some(id => !ITEMS[id])) {
+      throw new Error('El inventario compartido de Neo tiene un formato inválido; no se modificó.');
+    }
+    return [...stored];
+  }
   let inventory = normalizeInventory(read(INVENTORY_KEY));
   let chosenSlot = -1;
+  let chosenItemId = null;
   let inventoryView = 'closed';
   const BATTLE_PREFIX = 'muscules_dynamic_battle_v02_';
   const DURATION = 24 * 60 * 60 * 1000;
   const CATALOG = window.MUSCULES_ENEMIES || [];
   const $ = id => document.getElementById(id);
+  const qaMode = Boolean($('enemy-select'));
+  const requestedEncounterId = qaMode ? null : new URLSearchParams(location.search).get('encounter');
   const save = (key, value) => localStorage.setItem(key, JSON.stringify(value));
   const roll = () => Math.floor(Math.random() * 20) + 1;
   const clamp = (x, min, max) => Math.min(max, Math.max(min, x));
   const demoStats = enemy => ({ ...enemy, hp: enemy.hp ?? 45, atk: enemy.atk ?? 8, xp: enemy.xp ?? 0 });
   const initialHero = () => ({ hp: 28, maxHp: 28, atk: 35, xp: 9400 });
-  let hero = read(HERO_KEY) || initialHero();
+  let hero;
+  try { hero = statsStore.read(); }
+  catch (error) { hero = initialHero(); console.error('No se pudieron leer las estadísticas compartidas de Neo.', error); }
+  let heroBaseline = { ...hero };
+  function renderHeroTitle() {
+    $('hero-title').textContent = typeof hero.levelName === 'string' && hero.levelName.trim()
+      ? hero.levelName
+      : 'Neogon';
+  }
+  renderHeroTitle();
+  let statsLockDepth = 0;
+  let statsTransaction = null;
   let selectedId = 'carrotnero';
-  const currentEncounter = read(CURRENT_ENCOUNTER_KEY);
-  if (CATALOG.some(e => e.id === currentEncounter?.enemyId)) selectedId = currentEncounter.enemyId;
-  let enemy, battle, battleKey;
+  let enemy, battle, battleKey, activeEncounter = null;
   function createEncounterId() { return `${Date.now()}-${Math.random().toString(36).slice(2)}`; }
-  function freshBattle() { return { id: `demo-${enemy.id}`, encounterId: createEncounterId(), enemyId: enemy.id, startedAt: Date.now(), expiresAt: Date.now() + DURATION, enemyHp: enemy.hp, heroHp: hero.hp, status: hero.hp > 0 ? 'active' : 'lost', reason: hero.hp > 0 ? null : 'hp', round: 0, claimed: false, openingApplied: false, xpStolen: 0, rooted: false, slothAttacks: 0, owlPenalty: false, itemUsed: false, itemBuff: null, lapidaMaxHp: null, lapidaHp: null, poisonTurns: 0, message: `¡${enemy.name} te desafía! Neo ataca primero.` }; }
+  function freshBattle(encounter = {}) {
+    const startedAt = Number.isFinite(encounter.startedAt) ? encounter.startedAt : Date.now();
+    return {
+      id: `demo-${enemy.id}`,
+      encounterId: encounter.encounterId || createEncounterId(),
+      enemyId: enemy.id,
+      startedAt,
+      expiresAt: Number.isFinite(encounter.expiresAt) ? encounter.expiresAt : startedAt + DURATION,
+      enemyHp: enemy.hp,
+      heroHp: hero.hp,
+      status: hero.hp > 0 ? 'active' : 'lost',
+      reason: hero.hp > 0 ? null : 'hp',
+      round: 0,
+      claimed: false,
+      openingApplied: false,
+      xpStolen: 0,
+      rooted: false,
+      slothAttacks: 0,
+      owlPenalty: false,
+      itemUsed: false,
+      itemBuff: null,
+      lapidaMaxHp: null,
+      lapidaHp: null,
+      poisonTurns: 0,
+      message: `¡${enemy.name} te desafía! Neo ataca primero.`
+    };
+  }
   // La Lápida limita la vida DISPONIBLE, sin borrar la mitad protegida.
   // hero.hp siempre guarda la vida real restante de Neo.
   function isLapida() { return enemy?.effect?.type === 'half_hp'; }
@@ -79,10 +137,83 @@
   function markHeroDefeat() {
     battle.status = 'lost'; battle.reason = isLapida() && hero.hp > 0 ? 'lapida' : 'hp';
   }
+  function reportLockError(error) {
+    console.error('No se pudo completar la acción de combate de forma segura.', error);
+    const note = $('demo-note');
+    if (note) {
+      note.textContent = error?.message || 'No se pudo sincronizar Neo; intenta de nuevo.';
+      note.classList.add('is-error');
+    } else {
+      $('log').textContent = error?.message || 'No se pudo sincronizar Neo; intenta de nuevo.';
+    }
+  }
+  function refreshBattleFromStorage() {
+    if (!battleKey || !battle?.encounterId) return;
+    const pointer = read(CURRENT_ENCOUNTER_KEY);
+    if (pointer?.enemyId !== selectedId || pointer?.encounterId !== battle.encounterId) return;
+    activeEncounter = pointer;
+    const latest = read(battleKey);
+    if (latest?.encounterId === battle.encounterId) battle = latest;
+  }
+  function runWithStatsLock(task) {
+    if (statsLockDepth) return task();
+    const encounterIdAtStart = battle?.encounterId;
+    if (!statsStore.supportsLock()) {
+      reportLockError(new Error('Web Locks no está disponible en este navegador; no se guardó ningún cambio.'));
+      return Promise.resolve(false);
+    }
+    return statsStore.withLock(({ read: readLatest, write }) => {
+      hero = readLatest();
+      heroBaseline = { ...hero };
+      inventory = readInventoryForUpdate();
+      statsTransaction = { read: readLatest, write };
+      statsLockDepth = 1;
+      try {
+        if (!qaMode && encounterIdAtStart) {
+          const pointer = read(CURRENT_ENCOUNTER_KEY);
+          if (pointer?.encounterId !== encounterIdAtStart || pointer?.enemyId !== selectedId) {
+            if (pointer && CATALOG.some(candidate => candidate.id === pointer.enemyId)
+              && (!requestedEncounterId || pointer.encounterId === requestedEncounterId)) {
+              loadEnemyUnlocked(pointer.enemyId);
+            } else {
+              showNoEncounter(pointer ? 'Este enlace ya no corresponde al encuentro activo de Cherry.' : undefined);
+            }
+            return false;
+          }
+        }
+        refreshBattleFromStorage();
+        return task();
+      } finally {
+        statsLockDepth = 0;
+        statsTransaction = null;
+      }
+    }).catch(error => {
+      reportLockError(error);
+      return false;
+    });
+  }
   function persist() {
     if (battle.status !== 'active' && battle.itemBuff?.kind === 'atk_override') battle.itemBuff = null;
     if (battle.status !== 'active' && battle.itemBuff?.kind === 'damage_bonus') battle.itemBuff = null;
-    save(battleKey, battle); save(HERO_KEY, hero); save(INVENTORY_KEY, inventory);
+    if (statsLockDepth && statsTransaction) {
+      const latest = statsTransaction.read();
+      const updatedStats = { ...latest };
+      let statsChanged = false;
+      // Merge only combat-owned stat deltas into the locked, latest profile.
+      for (const key of ['hp', 'maxHp', 'atk', 'xp']) {
+        if (hero[key] !== heroBaseline[key]) {
+          updatedStats[key] = hero[key];
+          statsChanged = true;
+        }
+      }
+      if (statsChanged) {
+        statsTransaction.write(updatedStats);
+        hero = updatedStats;
+        heroBaseline = { ...updatedStats };
+      }
+    }
+    if (battleKey && battle) save(battleKey, battle);
+    save(INVENTORY_KEY, inventory);
   }
   function discardPendingReward(pointer) {
     if (!pointer?.enemyId || !pointer.encounterId) return;
@@ -94,31 +225,67 @@
     previousBattle.rewardMessage = 'Encuentro reemplazado; la recompensa pendiente se perdió.';
     save(previousKey, previousBattle);
   }
-  function loadEnemy(id, startNewEncounter = false) {
-    const source = CATALOG.find(e => e.id === id); if (!source) return;
-    if (source.hp == null || source.atk == null) { alert(`${source.name} tiene una mecánica especial pendiente; no se puede combatir todavía.`); $('enemy-select').value = selectedId; return; }
-    selectedId = id; enemy = demoStats(source); battleKey = BATTLE_PREFIX + id;
-    closeInventory();
+  function loadEnemyUnlocked(id, startNewEncounter = false) {
+    const source = CATALOG.find(e => e.id === id);
+    if (!source) return;
+    if (source.hp == null || source.atk == null) {
+      if (qaMode) {
+        alert(`${source.name} tiene una mecánica especial pendiente; no se puede combatir todavía.`);
+        $('enemy-select').value = selectedId;
+      } else {
+        showNoEncounter(`${source.name} todavía no está disponible para combate.`);
+      }
+      return;
+    }
+
     const pointer = read(CURRENT_ENCOUNTER_KEY);
-    if (startNewEncounter) discardPendingReward(pointer);
+    if (!qaMode && (!pointer || pointer.enemyId !== id || !pointer.encounterId
+      || (requestedEncounterId && requestedEncounterId !== pointer.encounterId))) {
+      showNoEncounter(pointer ? 'Este enlace ya no corresponde al encuentro activo de Cherry.' : undefined);
+      return;
+    }
+
+    selectedId = id;
+    enemy = demoStats(source);
+    battleKey = BATTLE_PREFIX + id;
+    closeInventory();
+    if (qaMode && startNewEncounter) discardPendingReward(pointer);
+    activeEncounter = qaMode ? null : pointer;
     const storedBattle = read(battleKey);
     const pointerMatchesEnemy = pointer?.enemyId === id;
     const battleMatchesPointer = pointerMatchesEnemy && storedBattle?.encounterId
       && storedBattle.encounterId === pointer.encounterId;
     const canAdoptLegacyBattle = storedBattle && !storedBattle.encounterId
       && (!pointer || pointerMatchesEnemy);
-    if (startNewEncounter || (!battleMatchesPointer && !canAdoptLegacyBattle)) {
-      battle = freshBattle();
+    if (qaMode) {
+      if (startNewEncounter || (!battleMatchesPointer && !canAdoptLegacyBattle)) {
+        battle = freshBattle();
+      } else {
+        battle = storedBattle || freshBattle();
+        if (!battle.encounterId) battle.encounterId = createEncounterId();
+      }
+      if (!pointerMatchesEnemy || pointer?.encounterId !== battle.encounterId) {
+        save(battleKey, battle);
+        save(CURRENT_ENCOUNTER_KEY, {
+          enemyId: id,
+          encounterId: battle.encounterId,
+          startedAt: battle.startedAt,
+          expiresAt: battle.expiresAt,
+          dmMessage: ''
+        });
+      } else if (storedBattle && !storedBattle.encounterId) {
+        save(battleKey, battle);
+        save(CURRENT_ENCOUNTER_KEY, {
+          enemyId: id,
+          encounterId: battle.encounterId,
+          startedAt: battle.startedAt,
+          expiresAt: battle.expiresAt,
+          dmMessage: ''
+        });
+      }
     } else {
-      battle = storedBattle || freshBattle();
-      if (!battle.encounterId) battle.encounterId = createEncounterId();
-    }
-    if (!pointerMatchesEnemy || pointer?.encounterId !== battle.encounterId) {
-      save(battleKey, battle);
-      save(CURRENT_ENCOUNTER_KEY, { enemyId: id, encounterId: battle.encounterId });
-    } else if (storedBattle && !storedBattle.encounterId) {
-      save(battleKey, battle);
-      save(CURRENT_ENCOUNTER_KEY, { enemyId: id, encounterId: battle.encounterId });
+      battle = battleMatchesPointer ? storedBattle : freshBattle(pointer);
+      if (!battleMatchesPointer) save(battleKey, battle);
     }
     // Compatibilidad con encuentros creados antes de introducir openingApplied:
     // si ya hubo rondas, nunca volver a aplicar un efecto inicial.
@@ -167,7 +334,7 @@
       }
     }
     if (battle.status === 'active' && heroDefeated()) markHeroDefeat();
-    $('enemy-select').value = id;
+    if ($('enemy-select')) $('enemy-select').value = id;
     $('enemy-name').textContent = enemy.name;
     $('enemy-image').src = enemy.image; $('enemy-image').alt = enemy.name;
     $('win-image').src = enemy.image; $('lose-image').src = enemy.image;
@@ -176,11 +343,23 @@
     $('reward-xp').textContent = enemy.reward?.type === 'extra_life'
       ? '❤️ Vida extra'
       : enemy.reward?.type === 'item' ? ITEMS.cumbia[0] : enemy.reward?.description || `${enemy.xp ?? 0} XP`;
-    $('demo-note').textContent = source.hp === null ? '⚠️ Estadísticas provisionales: revisa enemies.js' : 'Modo local: sin sincronización';
-    history.replaceState(null, '', `?enemy=${encodeURIComponent(id)}`);
+    const demoNote = $('demo-note');
+    if (demoNote) demoNote.textContent = source.hp === null ? '⚠️ Estadísticas provisionales: revisa enemies.js' : 'Modo local de QA';
+    if (qaMode) history.replaceState(null, '', `?enemy=${encodeURIComponent(id)}`);
     persist(); render();
   }
-  function expire() { if (battle.status === 'active' && Date.now() >= battle.expiresAt) { battle.status = 'lost'; battle.reason = 'time'; battle.message = `¡Se acabaron las 24 horas! ${enemy.name} escapó.`; persist() } }
+  function loadEnemy(id, startNewEncounter = false) {
+    return runWithStatsLock(() => loadEnemyUnlocked(id, startNewEncounter));
+  }
+  function expire() {
+    if (battle?.status !== 'active' || Date.now() < battle.expiresAt) return;
+    if (!statsLockDepth) {
+      runWithStatsLock(expire);
+      return;
+    }
+    battle.status = 'lost'; battle.reason = 'time'; battle.message = `¡Se acabaron las 24 horas! ${enemy.name} escapó.`;
+    persist();
+  }
   function rewardItemId(reward) {
     if (reward?.type === 'extra_life') return 'vida_extra';
     if (reward?.type === 'item') return 'cumbia';
@@ -195,10 +374,12 @@
     if (!battle) return;
     $('waiting').hidden = true;
     expire();
-    const pickerContainer = battle.status === 'active' ? $('battle-picker-container')
-      : battle.status === 'won' ? $('win-picker-container') : $('lose-picker-container');
-    const picker = document.querySelector('.dev-picker');
-    if (picker.parentElement !== pickerContainer) pickerContainer.append(picker);
+    if (qaMode) {
+      const pickerContainer = battle.status === 'active' ? $('battle-picker-container')
+        : battle.status === 'won' ? $('win-picker-container') : $('lose-picker-container');
+      const picker = document.querySelector('.dev-picker');
+      if (picker.parentElement !== pickerContainer) pickerContainer.append(picker);
+    }
     const remaining = Math.max(0, battle.expiresAt - Date.now());
     const hh = Math.floor(remaining / 3600000), mm = Math.floor(remaining % 3600000 / 60000), ss = Math.floor(remaining % 60000 / 1000);
     $('timer').textContent = [hh, mm, ss].map(x => String(x).padStart(2, '0')).join(':');
@@ -211,7 +392,13 @@
       ? `${visibleHp}/${visibleMaxHp} HP · ${hero.hp}/${hero.maxHp} reales`
       : `${hero.hp}/${hero.maxHp} HP`;
     $('hero-bar').style.width = `${100 * clamp(visibleHp / Math.max(1, visibleMaxHp), 0, 1)}%`;
-    $('log').textContent = battle.message; $('roll').disabled = battle.status !== 'active' || hero.hp <= 0;
+    $('log').textContent = battle.message;
+    const dmMessage = $('dm-message');
+    if (dmMessage) {
+      dmMessage.textContent = activeEncounter?.dmMessage || '';
+      dmMessage.hidden = !dmMessage.textContent;
+    }
+    $('roll').disabled = battle.status !== 'active' || hero.hp <= 0;
     const inventoryFull = rewardNeedsInventorySpace() && inventory.length >= 15;
     $('claim').disabled = battle.claimed || battle.rewardDiscarded || inventoryFull; $('claim').textContent = battle.claimed ? 'Reclamado ✓' : 'Reclamar';
     $('claim-status').textContent = battle.claimed
@@ -244,23 +431,28 @@
   }
   function closeInventory() {
     inventoryView = 'closed'; chosenSlot = -1;
+    chosenItemId = null;
     if ($('inventory-overlay')) $('inventory-overlay').hidden = true;
     if ($('inventory-detail')) $('inventory-detail').hidden = true;
     if ($('inventory-grid-view')) $('inventory-grid-view').hidden = false;
   }
-  function showNoEncounter() {
+  function showNoEncounter(message = 'Por el momento no hay encuentro flaquito chulo') {
     closeInventory();
-    enemy = null; battle = null; battleKey = null;
+    enemy = null; battle = null; battleKey = null; activeEncounter = null;
     $('battle').hidden = true;
     $('win').hidden = true;
     $('lose').hidden = true;
     $('waiting').hidden = false;
-    const picker = document.querySelector('.dev-picker');
-    if (picker.parentElement !== $('waiting-picker-container')) $('waiting-picker-container').append(picker);
-    $('enemy-select').value = '';
-    history.replaceState(null, '', location.pathname);
+    $('waiting-message').textContent = message;
+    if (qaMode) {
+      const picker = document.querySelector('.dev-picker');
+      if (picker.parentElement !== $('waiting-picker-container')) $('waiting-picker-container').append(picker);
+      $('enemy-select').value = '';
+      history.replaceState(null, '', location.pathname);
+    }
   }
   function deactivateEncounter() {
+    if (!qaMode) return;
     discardPendingReward(read(CURRENT_ENCOUNTER_KEY));
     localStorage.removeItem(CURRENT_ENCOUNTER_KEY);
     showNoEncounter();
@@ -285,7 +477,7 @@
   }
   function showDetail(index) {
     const id = inventory[index]; if (!id) return;
-    chosenSlot = index; inventoryView = 'detail';
+    chosenSlot = index; chosenItemId = id; inventoryView = 'detail';
     $('inventory-grid-view').hidden = true; $('inventory-detail').hidden = false;
     const card = $('inventory-card'); card.replaceChildren();
     const image = itemCard(id);
@@ -296,15 +488,23 @@
   }
   function restartWithLife(amount) {
     const encounterId = battle.encounterId;
+    const { startedAt, expiresAt } = battle;
     hero.hp = Math.min(hero.maxHp, amount);
-    battle = freshBattle();
+    battle = freshBattle({ encounterId, startedAt, expiresAt });
     battle.encounterId = encounterId;
     battle.message = `❤️ ¡Neo ha revivido con ${hero.hp} HP! ${enemy.name} vuelve con toda su vida.`;
     // El efecto de apertura se procesa al recargar este encuentro.
     persist(); loadEnemy(selectedId);
   }
   function applyItem() {
-    const id = inventory[chosenSlot]; if (!id || !canUse(id)) return;
+    const id = inventory[chosenSlot];
+    if (!id || id !== chosenItemId) {
+      closeInventory();
+      $('demo-note').textContent = 'El inventario cambió desde otra pestaña. Vuelve a seleccionar el objeto.';
+      render();
+      return;
+    }
+    if (!canUse(id)) return;
     const name = ITEMS[id][0]; const value = ITEMS[id][4]; const kind = ITEMS[id][3];
     if (isRevive(id)) {
       inventory.splice(chosenSlot, 1); closeInventory();
@@ -345,10 +545,10 @@
   $('inventory-toggle').addEventListener('click', () => { if (usableInventory()) showGrid(); });
   $('inventory-close').addEventListener('click', closeInventory);
   $('inventory-detail-close').addEventListener('click', showGrid);
-  $('inventory-apply').addEventListener('click', applyItem);
+  $('inventory-apply').addEventListener('click', () => runWithStatsLock(applyItem));
   $('inventory-overlay').addEventListener('click', e => { if (e.target === $('inventory-overlay')) closeInventory(); });
   $('inventory-detail').addEventListener('click', e => { if (e.target === $('inventory-detail')) closeInventory(); });
-  $('roll').addEventListener('click', () => {
+  $('roll').addEventListener('click', () => runWithStatsLock(() => {
     expire(); if (battle.status !== 'active') { render(); return; }
     if (heroDefeated()) { markHeroDefeat(); persist(); render(); return; }
     // Veneno: al comenzar los dos turnos siguientes, antes del ataque de Neo.
@@ -462,8 +662,8 @@
       if (heroDefeated()) { markHeroDefeat(); battle.message += isLapida() && hero.hp > 0 ? ' ¡Se agotó tu HP disponible! La mitad protegida permanece intacta.' : ' Neo ha caído.'; }
     }
     persist(); render();
-  });
-  $('claim').addEventListener('click', () => {
+  }));
+  $('claim').addEventListener('click', () => runWithStatsLock(() => {
     if (!battle || !enemy) { showNoEncounter(); return; }
     const pointer = read(CURRENT_ENCOUNTER_KEY);
     if (pointer?.enemyId !== enemy.id || pointer?.encounterId !== battle.encounterId) {
@@ -481,7 +681,7 @@
     const reward = enemy.reward;
     if (!reward || reward.type === 'xp') { hero.xp += enemy.xp || 0; battle.rewardMessage = `XP total: ${hero.xp}`; }
     else {
-      inventory = normalizeInventory(read(INVENTORY_KEY));
+      inventory = readInventoryForUpdate();
       if (inventory.length >= 15 && rewardNeedsInventorySpace()) { render(); return; }
       const id = rewardItemId(reward);
       if (!id) { alert('Esta recompensa especial todavía no está implementada.'); return; }
@@ -498,13 +698,36 @@
       battle.rewardMessage = `🎒 Obtuviste: ${ITEMS[id][0]}`;
     }
     battle.claimed = true; persist(); render();
-  });
-  $('reset').addEventListener('click', () => { if (!confirm(`¿Reiniciar este encuentro de prueba? Restaurará HP a ${hero.maxHp} y no restará XP ya reclamado.`)) return; hero.hp = hero.maxHp; loadEnemy(selectedId, true) });
-  $('enemy-select').addEventListener('change', e => {
-    if (e.target.value === '') deactivateEncounter();
-    else loadEnemy(e.target.value, true);
-  });
+  }));
+  if (qaMode) {
+    $('reset').addEventListener('click', () => {
+      if (!confirm(`¿Reiniciar este encuentro de prueba? Restaurará HP a ${hero.maxHp} y no restará XP ya reclamado.`)) return;
+      runWithStatsLock(() => { hero.hp = hero.maxHp; loadEnemyUnlocked(selectedId, true); });
+    });
+    $('enemy-select').addEventListener('change', e => {
+      if (e.target.value === '') deactivateEncounter();
+      else loadEnemy(e.target.value, true);
+    });
+  }
   window.addEventListener('storage', event => {
+    if (event.key === HERO_KEY) {
+      try {
+        hero = statsStore.read();
+        heroBaseline = { ...hero };
+        renderHeroTitle();
+        if (battle?.status === 'active') battle.heroHp = hero.hp;
+        render();
+      } catch (error) {
+        reportLockError(error);
+      }
+    }
+    if (event.key === battleKey && battle?.encounterId) {
+      const latestBattle = read(battleKey);
+      if (latestBattle?.encounterId === battle.encounterId) {
+        battle = latestBattle;
+        render();
+      }
+    }
     if (event.key === INVENTORY_KEY) {
       inventory = normalizeInventory(read(INVENTORY_KEY));
       if (inventoryView !== 'closed') showGrid();
@@ -512,6 +735,19 @@
     }
     if (event.key === CURRENT_ENCOUNTER_KEY) {
       const pointer = read(CURRENT_ENCOUNTER_KEY);
+      if (!qaMode) {
+        if (CATALOG.some(candidate => candidate.id === pointer?.enemyId)
+          && pointer.encounterId
+          && (!requestedEncounterId || pointer.encounterId === requestedEncounterId)) {
+          loadEnemy(pointer.enemyId);
+        } else {
+          showNoEncounter(pointer
+            ? 'Este enlace ya no corresponde al encuentro activo de Cherry.'
+            : undefined);
+        }
+        return;
+      }
+
       let previousPointer = null;
       if (event.oldValue) {
         try { previousPointer = JSON.parse(event.oldValue); }
@@ -536,31 +772,70 @@
       }
     }
   });
-  const encounterPlaceholder = document.createElement('option');
-  encounterPlaceholder.value = '';
-  encounterPlaceholder.textContent = 'Sin encuentro';
-  $('enemy-select').append(encounterPlaceholder);
-  for (const e of CATALOG) { const opt = document.createElement('option'); opt.value = e.id; opt.textContent = `Nivel ${e.level} · ${e.name}`; $('enemy-select').append(opt) }
-  window.MusculesDemo = {
-    inventory: () => [...inventory],
-    grantItem: id => {
-      if (!ITEMS[id] || inventory.length >= 15) return false;
-      inventory.push(id);
-      save(INVENTORY_KEY, inventory);
-      if (battle) persist();
-      render();
-      return true;
-    },
-    state: () => structuredClone({ hero, battle, enemy, inventory }),
-    reset: () => { if (battle) $('reset').click(); },
-    expire: () => { if (battle) { battle.expiresAt = Date.now() - 1; persist(); render(); } },
-    win: () => { if (!battle || battle.status !== 'active') return; battle.enemyHp = 0; battle.status = 'won'; battle.message = 'Victoria forzada para probar la pantalla'; persist(); render(); },
-    select: id => loadEnemy(id, true)
-  };
-  if (CATALOG.some(e => e.id === currentEncounter?.enemyId) && currentEncounter.encounterId) {
-    loadEnemy(currentEncounter.enemyId);
+  if (qaMode) {
+    const encounterPlaceholder = document.createElement('option');
+    encounterPlaceholder.value = '';
+    encounterPlaceholder.textContent = 'Sin encuentro';
+    $('enemy-select').append(encounterPlaceholder);
+    for (const e of CATALOG) {
+      const option = document.createElement('option');
+      option.value = e.id;
+      option.textContent = `Nivel ${e.level} · ${e.name}`;
+      $('enemy-select').append(option);
+    }
+    window.MusculesDemo = {
+      inventory: () => [...inventory],
+      grantItem: id => {
+        if (!ITEMS[id]) return Promise.resolve(false);
+        return runWithStatsLock(() => {
+          if (inventory.length >= 15) return false;
+          inventory.push(id);
+          if (battle) persist();
+          else save(INVENTORY_KEY, inventory);
+          render();
+          return true;
+        });
+      },
+      state: () => structuredClone({ hero, battle, enemy, inventory }),
+      reset: () => { if (battle) $('reset').click(); },
+      expire: () => runWithStatsLock(() => {
+        if (!battle) return;
+        battle.expiresAt = Date.now() - 1;
+        expire();
+        render();
+      }),
+      win: () => runWithStatsLock(() => {
+        if (!battle || battle.status !== 'active') return;
+        battle.enemyHp = 0;
+        battle.status = 'won';
+        battle.message = 'Victoria forzada para probar la pantalla';
+        persist();
+        render();
+      }),
+      select: id => loadEnemy(id, true)
+    };
+    const initialPointer = read(CURRENT_ENCOUNTER_KEY);
+    const requestedEnemy = new URLSearchParams(location.search).get('enemy')
+      || (CATALOG.some(e => e.id === initialPointer?.enemyId) ? initialPointer.enemyId : null);
+    if (requestedEnemy && CATALOG.some(e => e.id === requestedEnemy)) {
+      loadEnemy(requestedEnemy);
+    } else {
+      showNoEncounter();
+    }
   } else {
-    showNoEncounter();
+    const pointer = read(CURRENT_ENCOUNTER_KEY);
+    if (CATALOG.some(candidate => candidate.id === pointer?.enemyId)
+      && pointer.encounterId
+      && (!requestedEncounterId || pointer.encounterId === requestedEncounterId)) {
+      loadEnemy(pointer.enemyId);
+    } else {
+      showNoEncounter(pointer
+        ? 'Este enlace ya no corresponde al encuentro activo de Cherry.'
+        : undefined);
+    }
+  }
+  if (!statsStore.supportsLock()) {
+    reportLockError(new Error('Este navegador no permite Web Locks; no se guardarán cambios de forma segura.'));
   }
   setInterval(render, 1000);
 })();

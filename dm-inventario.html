@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#42303a">
+  <title>Muscules | Inventario · DM</title>
+  <link rel="stylesheet" href="dm.css">
+</head>
+<body>
+  <main class="dm-screen dm-screen--interior" aria-label="Administrar inventario de Neo">
+    <img class="dm-star dm-star--tl" src="assets/sparkle.png" alt="">
+    <img class="dm-star dm-star--tr" src="assets/sparkle.png" alt="">
+    <img class="dm-star dm-star--bl" src="assets/sparkle.png" alt="">
+    <img class="dm-star dm-star--br" src="assets/sparkle.png" alt="">
+    <div class="dm-frame"></div>
+    <a class="dm-back" href="dm.html">← Atrás</a>
+    <section class="dm-content dm-content--inventory">
+      <header class="dm-profile-heading">
+        <h1>Neo</h1>
+        <img class="dm-profile-avatar" src="assets/neo icono.png" alt="Neo">
+      </header>
+      <div class="dm-panel dm-inventory-panel">
+        <label class="dm-label" for="dm-item">Seleccionar item</label>
+        <select id="dm-item" aria-describedby="dm-item-ability">
+          <option value="" selected disabled>Seleccionar item</option>
+        </select>
+        <div class="dm-copy-block dm-item-description">
+          <h2>Habilidad</h2>
+          <p id="dm-item-ability" aria-live="polite">Selecciona un objeto para ver su habilidad.</p>
+        </div>
+        <label class="dm-label" for="dm-message">Mensaje para Neo</label>
+        <textarea id="dm-message" rows="3" maxlength="100" placeholder="Escribe un mensaje para Neo (máximo 100 caracteres)" aria-describedby="dm-message-limit"></textarea>
+        <span id="dm-message-limit" class="dm-message-limit">Máximo 100 caracteres</span>
+        <p id="dm-inventory-status" class="dm-inventory-status" role="status" aria-live="polite"></p>
+        <button id="dm-inventory-save" class="dm-save dm-inventory-save" type="button" disabled>Guardar · Pendiente</button>
+      </div>
+    </section>
+  </main>
+  <script src="neo-stats-lock.js"></script>
+  <script src="inventory-data.js"></script>
+  <script src="dm-inventario.js"></script>
+</body>
+</html>

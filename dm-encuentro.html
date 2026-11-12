@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#42303a">
+  <title>Muscules | Encuentro · DM</title>
+  <link rel="stylesheet" href="dm.css">
+</head>
+<body>
+  <main class="dm-screen dm-screen--interior" aria-label="Administrar encuentro de Neo">
+    <img class="dm-star dm-star--tl" src="assets/sparkle.png" alt="">
+    <img class="dm-star dm-star--tr" src="assets/sparkle.png" alt="">
+    <img class="dm-star dm-star--bl" src="assets/sparkle.png" alt="">
+    <img class="dm-star dm-star--br" src="assets/sparkle.png" alt="">
+    <div class="dm-frame"></div>
+    <a class="dm-back" href="dm.html">← Atrás</a>
+    <section class="dm-content dm-content--encounter">
+      <header class="dm-profile-heading">
+        <h1>Neo</h1>
+        <img class="dm-profile-avatar" src="assets/neo icono.png" alt="Neo">
+      </header>
+      <div class="dm-encounter-content">
+        <label class="dm-label" for="dm-enemy">Seleccionar enemigo</label>
+        <select id="dm-enemy" aria-describedby="dm-enemy-details">
+          <option value="" selected disabled>Seleccionar enemigo</option>
+        </select>
+        <section id="dm-enemy-details" class="dm-enemy-details" aria-live="polite">
+          <div class="dm-enemy-stat">
+            <span>HP</span>
+            <span id="dm-enemy-hp">—</span>
+          </div>
+          <div class="dm-enemy-stat">
+            <span>ATK</span>
+            <span id="dm-enemy-atk">—</span>
+          </div>
+          <div class="dm-enemy-ability">
+            <h2>Habilidad</h2>
+            <p id="dm-enemy-ability">Selecciona un enemigo para ver sus datos.</p>
+          </div>
+        </section>
+        <label class="dm-label" for="dm-message">Mensaje para Neo</label>
+        <textarea id="dm-message" rows="3" maxlength="100" placeholder="Escribe un mensaje para Neo (máximo 100 caracteres)" aria-describedby="dm-message-limit"></textarea>
+        <span id="dm-message-limit" class="dm-message-limit">Máximo 100 caracteres</span>
+        <p id="dm-encounter-status" class="dm-encounter-status" role="status" aria-live="polite"></p>
+        <button id="dm-encounter-save" class="dm-save dm-encounter-save" type="button" disabled>Activar encuentro</button>
+        <section class="dm-link-block dm-encounter-link">
+          <h2>Enlace</h2>
+          <div class="dm-link-content">
+            <input id="dm-encounter-url" type="text" readonly aria-label="Enlace del encuentro" placeholder="Disponible al activar el encuentro">
+            <button id="dm-encounter-copy" class="dm-copy" type="button" disabled aria-label="Copiar enlace">
+              <img src="assets/copiar.png" alt="">
+              <span>Copiar</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="neo-stats-lock.js"></script>
+  <script src="enemies.js"></script>
+  <script src="dm-encuentro.js"></script>
+</body>
+</html>

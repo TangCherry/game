@@ -3,7 +3,15 @@
 
   const HERO_KEY = 'muscules_neo_stats_v01';
   const XP_PER_LEVEL = 1000;
-  const DEFAULT_STATS = { hp: 28, maxHp: 28, atk: 35, xp: 9400 };
+  const DEFAULT_STATS = {
+    hp: 28,
+    maxHp: 28,
+    atk: 35,
+    xp: 9400,
+    weapon: 'Gancho',
+    sign: 'Sagitario',
+    levelName: 'Neogon'
+  };
   const $ = id => document.getElementById(id);
 
   function readStats() {
@@ -18,12 +26,17 @@
       return { ...DEFAULT_STATS };
     }
 
-    return Object.fromEntries(
-      Object.entries(DEFAULT_STATS).map(([key, fallback]) => [
-        key,
-        Number.isFinite(stored[key]) ? stored[key] : fallback
-      ])
-    );
+    return {
+      ...stored,
+      ...Object.fromEntries(
+        Object.entries(DEFAULT_STATS).map(([key, fallback]) => [
+          key,
+          key in { hp: 1, maxHp: 1, atk: 1, xp: 1 }
+            ? Number.isFinite(stored[key]) ? stored[key] : fallback
+            : typeof stored[key] === 'string' ? stored[key] : fallback
+        ])
+      )
+    };
   }
 
   function render() {
@@ -49,6 +62,9 @@
     $('xp-fill').style.width = `${xpProgress * 100}%`;
     $('xp-value').textContent = `${new Intl.NumberFormat('es-MX').format(stats.xp)} XP`;
     $('level-number').textContent = String(level);
+    $('weapon-value').textContent = stats.weapon;
+    $('sign-value').textContent = stats.sign;
+    $('level-name').textContent = stats.levelName;
   }
 
   window.addEventListener('storage', event => {

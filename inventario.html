@@ -23,6 +23,7 @@
             <h2>Inventario</h2>
             <div id="inventory-grid" class="inventory-grid" aria-label="Objetos de Neo"></div>
             <p class="hint">Toca un objeto para ver su tarjeta.</p>
+            <p id="gift-status" class="gift-status" role="status" aria-live="polite" hidden></p>
         </div>
     </main>
     <dialog id="item-dialog" aria-labelledby="item-title">
@@ -44,6 +45,17 @@
             </section>
         </div>
     </dialog>
+    <div id="gift-overlay" class="gift-overlay" hidden>
+        <section class="gift-window" role="dialog" aria-modal="true" aria-labelledby="gift-title">
+            <h2 id="gift-title">La sexy dm te ha regalado algo bonito</h2>
+            <img id="gift-image" class="gift-image" alt="">
+            <p id="gift-item-name" class="gift-item-name"></p>
+            <p id="gift-message" class="gift-message" hidden></p>
+            <p id="gift-error" class="gift-error" role="alert" hidden></p>
+            <button id="gift-accept" class="gift-accept" type="button">Aceptar</button>
+        </section>
+    </div>
+    <script src="neo-stats-lock.js"></script>
     <script src="inventory-data.js"></script>
     <script src="inventario.js"></script>
 </body>

@@ -9,24 +9,19 @@
 </head>
 
 <body>
-  <main class="game" id="game">
+  <main class="game game--player" id="game">
     <img class="corner tl" src="assets/combate/chispa.png" alt=""><img class="corner tr" src="assets/combate/chispa.png"
       alt=""><img class="corner bl" src="assets/combate/chispa.png" alt=""><img class="corner br"
       src="assets/combate/chispa.png" alt="">
     <section id="waiting" class="scene scene--waiting" hidden>
       <a class="back" href="index.html">← Atrás</a>
       <div class="waiting-content">
-        <h1>Por el momento no hay encuentro flaquito chulo</h1>
+        <h1 id="waiting-message">Por el momento no hay encuentro flaquito chulo</h1>
         <img class="waiting-cherry" src="assets/cherry.png" alt="Cherry, la Dungeon Master">
       </div>
-      <div id="waiting-picker-container"></div>
     </section>
     <section id="battle" class="scene scene--battle">
       <header>
-        <div id="battle-picker-container">
-          <div class="dev-picker"><label for="enemy-select">🧪 Enemigo de prueba</label><select
-              id="enemy-select"></select><small id="demo-note">Modo local: no es un encuentro real de Cherry</small></div>
-        </div>
         <a class="back" href="index.html">← Atrás</a>
         <div class="timer"><span>Tiempo restante:</span><strong id="timer" aria-live="off">24:00:00</strong></div>
       </header>
@@ -44,15 +39,15 @@
           <div class="track atk"><b id="enemy-atk">8</b></div>
         </div>
         <p class="ability"><strong>Habilidad</strong><span id="enemy-ability">Tus ataques hacen −3 de daño</span></p>
-        <div class="hero-stats"><span>NEOGON</span><span id="hero-hp">28/28 HP</span></div>
+        <p id="dm-message" class="dm-message" hidden></p>
+        <div class="hero-stats"><span id="hero-title">Neogon</span><span id="hero-hp">28/28 HP</span></div>
         <div class="hero-track">
           <div id="hero-bar"></div>
         </div>
         <p class="log" id="log" role="status">¡Carrotñero te desafía! Neo ataca primero.</p>
-        <div class="battle-actions"><button class="action" id="roll">🎲 Tirar dado</button><button id="inventory-toggle"
-            class="inventory-toggle" aria-label="Abrir inventario" title="Inventario"><img
-              src="assets/items/inventory-button.png" alt=""></button></div>
-        <button class="subaction" id="reset">Reiniciar prueba</button>
+        <div class="battle-actions">        <button class="action" id="roll">🎲 Tirar dado</button><button id="inventory-toggle"
+          class="inventory-toggle" aria-label="Abrir inventario" title="Inventario"><img
+            src="assets/items/inventory-button.png" alt=""></button></div>
       </div>
       <a class="exit" href="index.html">Salir</a>
     </section>
@@ -91,6 +86,7 @@
       </div>
     </div>
   </main>
+  <script src="neo-stats-lock.js" defer></script>
   <script src="enemies.js" defer></script>
   <script src="combate.js" defer></script>
 </body>

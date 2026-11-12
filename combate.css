@@ -249,6 +249,32 @@ a {
     margin: 11px 0 4px
 }
 
+.dm-message {
+    margin: 7px 0 4px;
+    padding: 8px 11px;
+    border: 1px solid #a87ad466;
+    border-radius: 8px;
+    background: #42215cbf;
+    color: #fff;
+    font-size: 14px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+    text-shadow: 0 1px 2px #0008
+}
+
+.dm-message[hidden] {
+    display: none !important
+}
+
+.game--player .hero-stats,
+.game--player .hero-track {
+    display: none
+}
+
+.game--player .battle-panel {
+    padding-bottom: 4px
+}
+
 .action,
 .claim {
     background: #c77f2b;
@@ -455,6 +481,11 @@ a {
 
 .dev-picker small {
     opacity: .8
+}
+
+.dev-picker small.is-error {
+    color: #ffb6b6;
+    opacity: 1
 }
 
 .enemy {
