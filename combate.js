@@ -1,11 +1,39 @@
 /* Muscules v0.7: bestiario dinámico, demo local. No sincroniza con Supabase. */
 (() => {
   'use strict';
+  const $ = id => document.getElementById(id);
+  const qaMode = Boolean($('enemy-select'));
   const statsStore = window.MusculesNeoStats;
+  const storage = statsStore?.storage;
+  const expectedMode = qaMode ? 'qa' : 'production';
+  const expectedStorageType = qaMode ? 'sessionStorage' : 'localStorage';
+  const expectedLockName = qaMode
+    ? 'muscules_neo_stats_write_qa_v01'
+    : 'muscules_neo_stats_write_v01';
+  const configurationIsSafe = statsStore
+    && statsStore.mode === expectedMode
+    && statsStore.storageType === expectedStorageType
+    && statsStore.lockName === expectedLockName
+    && storage
+    && typeof storage.getItem === 'function'
+    && typeof storage.setItem === 'function'
+    && typeof storage.removeItem === 'function';
+  if (!configurationIsSafe) {
+    const errorMessage = qaMode
+      ? 'QA detenido: el helper o su configuración de almacenamiento no son válidos. No se modificaron datos de producción.'
+      : 'Combate detenido: no se pudo validar el almacenamiento de Neo.';
+    for (const id of ['roll', 'inventory-toggle', 'reset', 'claim', 'revive-button', 'inventory-apply', 'enemy-select']) {
+      const control = $(id);
+      if (control) control.disabled = true;
+    }
+    if ($('demo-note')) $('demo-note').textContent = errorMessage;
+    if ($('log')) $('log').textContent = errorMessage;
+    return;
+  }
   const HERO_KEY = statsStore.key;
   const INVENTORY_KEY = 'muscules_neo_inventory_v01';
   const CURRENT_ENCOUNTER_KEY = 'muscules_dynamic_current_encounter_v01';
-  const read = key => { try { return JSON.parse(localStorage.getItem(key)) } catch { return null } };
+  const read = key => { try { return JSON.parse(storage.getItem(key)) } catch { return null } };
   const ITEM_POOL = ['bola', 'llave', 'totem', 'encendedor', 'ojo', 'maaaake', 'fuego', 'gatito', 'stirfry', 'miau', 'morision', 'cumbia', 'galleta', 'sherma', 'gusanito'];
   const ITEMS = {
     bola: ['Bola de cristal', 'bola-de-cristal.png', 'bola de cristal.png', 'roll_bonus', 1],
@@ -49,7 +77,7 @@
   function readInventoryForUpdate() {
     let raw;
     try {
-      raw = localStorage.getItem(INVENTORY_KEY);
+      raw = storage.getItem(INVENTORY_KEY);
     } catch (error) {
       throw new Error('No se pudo leer el inventario compartido de Neo.', { cause: error });
     }
@@ -72,10 +100,8 @@
   const BATTLE_PREFIX = 'muscules_dynamic_battle_v02_';
   const DURATION = 24 * 60 * 60 * 1000;
   const CATALOG = window.MUSCULES_ENEMIES || [];
-  const $ = id => document.getElementById(id);
-  const qaMode = Boolean($('enemy-select'));
   const requestedEncounterId = qaMode ? null : new URLSearchParams(location.search).get('encounter');
-  const save = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+  const save = (key, value) => storage.setItem(key, JSON.stringify(value));
   const roll = () => Math.floor(Math.random() * 20) + 1;
   const clamp = (x, min, max) => Math.min(max, Math.max(min, x));
   const demoStats = enemy => ({ ...enemy, hp: enemy.hp ?? 45, atk: enemy.atk ?? 8, xp: enemy.xp ?? 0 });
@@ -370,6 +396,10 @@
     return battle.status === 'won' && !battle.claimed
       && ['extra_life', 'item', 'random_item'].includes(enemy.reward?.type);
   }
+  function moveQaPicker(container) {
+    const picker = $('enemy-select')?.closest('.dev-picker');
+    if (picker && container && picker.parentElement !== container) container.append(picker);
+  }
   function render() {
     if (!battle) return;
     $('waiting').hidden = true;
@@ -377,8 +407,7 @@
     if (qaMode) {
       const pickerContainer = battle.status === 'active' ? $('battle-picker-container')
         : battle.status === 'won' ? $('win-picker-container') : $('lose-picker-container');
-      const picker = document.querySelector('.dev-picker');
-      if (picker.parentElement !== pickerContainer) pickerContainer.append(picker);
+      moveQaPicker(pickerContainer);
     }
     const remaining = Math.max(0, battle.expiresAt - Date.now());
     const hh = Math.floor(remaining / 3600000), mm = Math.floor(remaining % 3600000 / 60000), ss = Math.floor(remaining % 60000 / 1000);
@@ -444,9 +473,8 @@
     $('lose').hidden = true;
     $('waiting').hidden = false;
     $('waiting-message').textContent = message;
+    moveQaPicker($('waiting-picker-container'));
     if (qaMode) {
-      const picker = document.querySelector('.dev-picker');
-      if (picker.parentElement !== $('waiting-picker-container')) $('waiting-picker-container').append(picker);
       $('enemy-select').value = '';
       history.replaceState(null, '', location.pathname);
     }
@@ -454,7 +482,7 @@
   function deactivateEncounter() {
     if (!qaMode) return;
     discardPendingReward(read(CURRENT_ENCOUNTER_KEY));
-    localStorage.removeItem(CURRENT_ENCOUNTER_KEY);
+    storage.removeItem(CURRENT_ENCOUNTER_KEY);
     showNoEncounter();
   }
   function showGrid() {
@@ -710,6 +738,7 @@
     });
   }
   window.addEventListener('storage', event => {
+    if (event.storageArea && event.storageArea !== storage) return;
     if (event.key === HERO_KEY) {
       try {
         hero = statsStore.read();

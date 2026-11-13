@@ -9,7 +9,7 @@ const ITEM_CATALOG = [
   { id: "stirfry", name: "Stirfry", icon: "assets/items/stirfry.png", card: "assets/cards/stirfry.png", ability: "Cúrate de manera instantánea" },
   { id: "morision", name: "Pócima de la morisión", icon: "assets/items/pocima-de-la-morision.png", card: "assets/cards/pocion-de-la-morision.png", ability: "Lánzala a un enemigo y muere de manera instantánea" },
   { id: "galleta", name: "Galleta de conejito", icon: "assets/items/galleta-de-conejo-moreno.png", card: "assets/cards/galleta-de-conejo-moreno.png", ability: "Hecha con amor por la DM" },
-  { id: "encendedor", name: "Encendedor arcoíris", icon: "assets/items/encendedor-de-arcoiris.png", card: "assets/cards/encendedor-arcoiris.png", ability: "Sólo es bonito, ¿hará algo?" },
+  { id: "encendedor", name: "Encendedor arcoíris", icon: "assets/items/encendedor-de-arcoiris.png", card: "assets/cards/encendedor-arcoiris.png", ability: "Un solo uso: quema al oponente e inflige 3 de daño." },
   { id: "cumbia", name: "Poción de la cumbia", icon: "assets/items/pocion-de-la-cumbia.png", card: "assets/cards/pocima-de-la-cumbia.png", ability: "La cura a todos los males (sólo del juego)" },
   { id: "gusanito", name: "Gusanito", icon: "assets/items/gusanito.png", card: "assets/cards/gusanito.png", ability: "Es bonito y te da un boost en la batalla" },
   { id: "gatito", name: "Gatito fantasma", icon: "assets/items/gatito-fantasma.png", card: "assets/cards/gatito-fantasma.png", ability: "El gatito te dio una vida fantasmal" },

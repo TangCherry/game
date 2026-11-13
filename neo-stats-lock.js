@@ -2,7 +2,22 @@
   'use strict';
 
   const KEY = 'muscules_neo_stats_v01';
-  const LOCK_NAME = 'muscules_neo_stats_write_v01';
+  const LOCK_NAMES = {
+    production: 'muscules_neo_stats_write_v01',
+    qa: 'muscules_neo_stats_write_qa_v01'
+  };
+  const requestedMode = document.body?.dataset.musculesStorage || 'production';
+  const mode = Object.prototype.hasOwnProperty.call(LOCK_NAMES, requestedMode) ? requestedMode : null;
+  const storageType = mode === 'qa' ? 'sessionStorage' : mode === 'production' ? 'localStorage' : null;
+  let storage = null;
+  if (storageType) {
+    try {
+      storage = window[storageType];
+    } catch (error) {
+      console.error(`No se pudo acceder a ${storageType}.`, error);
+    }
+  }
+  const lockName = mode ? LOCK_NAMES[mode] : null;
   const DEFAULTS = {
     hp: 28,
     maxHp: 28,
@@ -14,10 +29,19 @@
   };
   const REQUIRED_NUMBERS = ['hp', 'maxHp', 'atk', 'xp'];
 
+  function requireStorage() {
+    if (!storage) {
+      throw new Error(mode
+        ? `No se pudo acceder a ${storageType}; no se leyeron ni guardaron datos.`
+        : 'La configuración de almacenamiento de Muscules no es válida; no se leyeron ni guardaron datos.');
+    }
+    return storage;
+  }
+
   function read() {
     let raw;
     try {
-      raw = localStorage.getItem(KEY);
+      raw = requireStorage().getItem(KEY);
     } catch (error) {
       throw new Error('No se pudieron leer las estadísticas locales de Neo.', { cause: error });
     }
@@ -49,24 +73,30 @@
 
   function write(stats) {
     try {
-      localStorage.setItem(KEY, JSON.stringify(stats));
+      requireStorage().setItem(KEY, JSON.stringify(stats));
     } catch (error) {
       throw new Error('No se pudieron guardar las estadísticas locales de Neo.', { cause: error });
     }
   }
 
   function withLock(callback) {
+    if (!mode || !storage) {
+      return Promise.reject(new Error('La configuración de almacenamiento no es válida; no se guardaron los cambios.'));
+    }
     if (!navigator.locks?.request) {
       return Promise.reject(new Error('Este navegador no permite Web Locks; no se guardaron los cambios.'));
     }
-    return navigator.locks.request(LOCK_NAME, { mode: 'exclusive' }, () => callback({ read, write }));
+    return navigator.locks.request(lockName, { mode: 'exclusive' }, () => callback({ read, write }));
   }
 
   window.MusculesNeoStats = Object.freeze({
     key: KEY,
-    lockName: LOCK_NAME,
+    mode,
+    storageType,
+    storage,
+    lockName,
     defaults: Object.freeze({ ...DEFAULTS }),
-    supportsLock: () => Boolean(navigator.locks?.request),
+    supportsLock: () => Boolean(mode && storage && navigator.locks?.request),
     read,
     withLock
   });
